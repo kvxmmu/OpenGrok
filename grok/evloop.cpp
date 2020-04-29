@@ -20,7 +20,7 @@ Future &EventLoop::add_callback(int fd, void (*tick)(EventLoop *, Future *)) {
 void EventLoop::poll() {
     this->running = true;
 
-    Future temp_fut(0, nullptr);
+    std::vector<Future> temp_futures;
 
     epoll_event events[EOPMAX_EVENTS];
     size_t nfds;
@@ -30,11 +30,13 @@ void EventLoop::poll() {
         for (size_t pos = 0; pos < nfds; pos++) {
             epoll_event &ev = events[pos];
 
-            if (this->in_futures(ev, temp_fut)) {
-                if (temp_fut.tick != nullptr && (temp_fut.trigger_event == 1 || ev.events & temp_fut.trigger_event))
-                    temp_fut.tick(this, &temp_fut);
-                if (temp_fut.finished && this->callbacks.find(ev.data.fd) != this->callbacks.end())
-                    this->callbacks.erase(ev.data.fd);
+            if (this->in_futures(ev, temp_futures)) {
+                for (Future &temp_fut : temp_futures) {
+                    if (temp_fut.tick != nullptr && (temp_fut.trigger_event == 1 || ev.events & temp_fut.trigger_event))
+                        temp_fut.tick(this, &temp_fut);
+                    if (temp_fut.finished && this->callbacks.find(ev.data.fd) != this->callbacks.end())
+                        this->callbacks.erase(ev.data.fd);
+                }
             } else {
                 std::cerr << "[OpenGrok] EventLoop Error: unknown FD#" << ev.data.fd << std::endl;
             }
@@ -46,14 +48,16 @@ void EventLoop::change_trigger(int fd, int trigger) const {
     this->selector.change_events(fd, trigger);
 }
 
-bool EventLoop::in_futures(epoll_event &ev, Future &fut) {
+bool EventLoop::in_futures(epoll_event &ev, std::vector<Future> &futs) {
+    bool found = false;
+
     for (auto &ifut : this->callbacks) {
         if (ifut.first == ev.data.fd) {
-            fut = ifut.second;
-            return true;
+            futs.push_back(ifut.second);
+            found = true;
         }
     }
-    return false;
+    return found;
 }
 
 Future::Future(int sfd, void (*on_tick)(EventLoop *, Future *)) : fd(sfd), tick(on_tick) {

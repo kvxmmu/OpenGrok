@@ -51,7 +51,7 @@ public:
 
     void change_trigger(int fd, int trigger) const;
     Future &add_callback(int fd, void (*tick)(EventLoop *, Future *) = nullptr);
-    bool in_futures(epoll_event &ev, Future &fut);
+    bool in_futures(epoll_event &ev, std::vector<Future> &futs);
 
     inline void remove_by_fd(int fd) {
         this->callbacks.erase(fd);
