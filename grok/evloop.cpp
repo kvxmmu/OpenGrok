@@ -31,7 +31,7 @@ void EventLoop::poll() {
             epoll_event &ev = events[pos];
 
             if (this->in_futures(ev, temp_fut)) {
-                if (temp_fut.tick != nullptr)
+                if (temp_fut.tick != nullptr && (temp_fut.trigger_event == 1 || ev.events & temp_fut.trigger_event))
                     temp_fut.tick(this, &temp_fut);
                 if (temp_fut.finished && this->callbacks.find(ev.data.fd) != this->callbacks.end())
                     this->callbacks.erase(ev.data.fd);
@@ -66,4 +66,8 @@ void Future::finish(EventLoop *evloop) {
         evloop->callbacks.erase(this->fd);
     if (this->on_finished != nullptr)
         this->on_finished(evloop, this);
+}
+
+void Future::modify_events(int new_events, EventLoop *loop) const {
+    loop->change_trigger(this->fd, new_events);
 }

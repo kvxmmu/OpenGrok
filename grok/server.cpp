@@ -38,9 +38,11 @@ void write_struct(const T &data, int fd) {
 
 bool check_read(int bytes_read, ServerData &data, Server *server, EventLoop *loop, Future *fut) {
     if (bytes_read <= 0) {
-        std::cout << NAME << SPACE << "Server#" << data.initiator << " disconnected" << std::endl;
+        if (data.client_future != nullptr)
+            data.client_future->finish(loop);
+        std::cout << NAME << SPACE << "Server#" << data.srvfd << " disconnected" << std::endl;
         server->remove_all_server_clients(data.initiator);
-        std::cout << NAME << SPACE << "Server#" << data.initiator << " cleaned up" << std::endl;
+        std::cout << NAME << SPACE << "Server#" << data.srvfd << " cleaned up" << std::endl;
         close(data.initiator);
         close(data.srvfd);
         fut->finish(loop);
@@ -81,10 +83,27 @@ void on_server_message(EventLoop *loop, Future *fut) {
 
     uint8_t type;
 
-    int bytes_read = -1;
+    int bytes_read;
 
-    if (fut->state == GET) {
+    if (fut->state == GET_MESSAGE) {
+        if (data.sent >= data.length) {
+            data.client_future->finish(loop);
+            fut->state = GET;
+            return;
+        }
+        if (data.locked)
+            return;
+        char buffer[BUFF_SIZE];
+        bytes_read = read(data.initiator, buffer, BUFF_SIZE);
+        if (!check_read(bytes_read, data, server, loop, fut))
+            return;
+        int written = write(data.to, buffer, bytes_read);
+        data.sent += written;
+    } if (fut->state == GET) {
         bytes_read = read(data.initiator, &type, sizeof(uint8_t));
+
+        if (!check_read(bytes_read, data, server, loop, fut))
+            return;
 
         data.type = type;
 
@@ -92,16 +111,43 @@ void on_server_message(EventLoop *loop, Future *fut) {
             fut->state = GET_DISCONNECTED;
         } else if (type == WRITE) {
             fut->state = GET_TO;
+        } else {
+            std::cerr << NAME << SPACE << "Server#" << data.srvfd << " closed, reason: unknown event type" << std::endl;
+            close(data.initiator);
+            close(data.srvfd);
+            server->remove_all_server_clients(data.initiator);
+            fut->finish(loop);
+            return;
         }
     } else if (fut->state == GET_DISCONNECTED) {
         int who;
         bytes_read = read(data.initiator, &who, sizeof(int));
+        if (!check_read(bytes_read, data, server, loop, fut))
+            return;
         close(who); // TODO: add descriptor check
         Connection tconn{};
         tconn.server = data.initiator;
         tconn.client = who;
         server->remove_connection(tconn);
         fut->state = GET;
+    } else if (fut->state == GET_TO) {
+        int to;
+        bytes_read = read(data.initiator, &to, sizeof(int));
+        if (!check_read(data.initiator, data, server, loop, fut))
+            return;
+        data.to = to;
+        fut->state = GET_LENGTH;
+    } else if (fut->state == GET_LENGTH) {
+        int length;
+        bytes_read = read(data.initiator, &length, sizeof(int));
+        if (!check_read(data.initiator, data, server, loop, fut))
+            return;
+        data.length = length;
+        fut->state = GET_MESSAGE;
+        Future &ewritefut = loop->add_callback(data.to, on_client_can_write);
+        data.client_future = &ewritefut;
+        ewritefut.modify_events(EPOLLOUT, loop);
+        ewritefut.memptr = &data;
     }
 
 
@@ -113,6 +159,12 @@ void on_client_connect(EventLoop *loop, Future *fut) {
 
 void on_client_message(EventLoop *loop, Future *fut) {
 
+}
+
+
+void on_client_can_write(EventLoop *loop, Future *fut) {
+    auto &data = *reinterpret_cast<ServerData *>(fut->memptr);
+    data.locked = false;
 }
 
 void on_server_exit(EventLoop *loop, Future *fut) {

@@ -29,6 +29,8 @@
 #define GET_DISCONNECTED 3
 #define GET_MESSAGE 4
 
+#define BUFF_SIZE 4096
+
 namespace {
     int y = 1;
 } // external linkage
@@ -44,6 +46,16 @@ typedef struct {
         int from = 0;
         int to;
     };
+    int sent = 0;
+
+    char buffer[BUFF_SIZE];
+
+    bool locked = true;
+    bool already_sent = false;
+    Future *client_future = nullptr;
+
+    time_t buffer_lock_time = 0;
+
     int length = 0;
 } ServerData;
 
@@ -56,13 +68,14 @@ unsigned short get_listen_port(int fd);
 int write_bytes(int fd, void *buffer, size_t bufflen);
 int read_bytes(int fd, void *buffer, size_t bufflen);
 template <typename T> void write_struct(const T &data, int fd);
-bool check_read(int bytes_read, ServerData &data, Server *server, EventLoop *loop, Future *fut)
+bool check_read(int bytes_read, ServerData &data, Server *server, EventLoop *loop, Future *fut);
 
 // callbacks
 void on_connect(EventLoop *loop, Future *fut);
 void on_client_connect(EventLoop *loop, Future *fut);
 void on_server_message(EventLoop *loop, Future *fut);
 void on_client_message(EventLoop *loop, Future *fut);
+void on_client_can_write(EventLoop *loop, Future *fut);
 
 void on_server_exit(EventLoop *loop, Future *fut);
 

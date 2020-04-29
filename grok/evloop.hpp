@@ -28,12 +28,14 @@ public:
 
     int fd;
 
-    int trigger_event = -1;
+    int trigger_event = EPOLLIN;
 
     void finish(EventLoop *evloop);
 
     Future() = default;
     Future(int sfd, void (*on_tick)(EventLoop *, Future *));
+
+    void modify_events(int new_events, EventLoop *loop) const;
 
 };
 
