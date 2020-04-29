@@ -1,4 +1,5 @@
 #include <grok/server.hpp>
+#include <cstring>
 
 
 sockaddr_in create_addr(unsigned short port, in_addr_t listen_addr) {
@@ -51,6 +52,21 @@ bool check_read(int bytes_read, ServerData &data, Server *server, EventLoop *loo
     return true;
 }
 
+bool check_client_read(int bytes_read, ServerData &data, EventLoop *loop, Server *srv, Future *fut) {
+    if (bytes_read <= 0) {
+        Connection econn{};
+        econn.server = data.initiator;
+        econn.client = fut->fd;
+        std::cout << NAME << SPACE << "Client#" << fut->fd << " Disconnected from the Server#" << data.srvfd << std::endl;
+        write_struct(Disconnect{fut->fd}, data.initiator);
+        fut->finish(loop);
+        srv->remove_connection(econn);
+        close(fut->fd);
+        return false;
+    }
+    return true;
+}
+
 void on_connect(EventLoop *loop, Future *fut) {
     auto server = reinterpret_cast<Server *>(fut->memptr);
     int client_fd = accept(fut->fd, nullptr, nullptr);
@@ -88,6 +104,7 @@ void on_server_message(EventLoop *loop, Future *fut) {
     if (fut->state == GET_MESSAGE) {
         if (data.sent >= data.length) {
             data.client_future->finish(loop);
+            data.client_future = nullptr;
             fut->state = GET;
             return;
         }
@@ -99,6 +116,7 @@ void on_server_message(EventLoop *loop, Future *fut) {
             return;
         int written = write(data.to, buffer, bytes_read);
         data.sent += written;
+        data.locked = true;
     } if (fut->state == GET) {
         bytes_read = read(data.initiator, &type, sizeof(uint8_t));
 
@@ -143,6 +161,7 @@ void on_server_message(EventLoop *loop, Future *fut) {
         if (!check_read(data.initiator, data, server, loop, fut))
             return;
         data.length = length;
+        data.sent = 0;
         fut->state = GET_MESSAGE;
         Future &ewritefut = loop->add_callback(data.to, on_client_can_write);
         data.client_future = &ewritefut;
@@ -154,17 +173,53 @@ void on_server_message(EventLoop *loop, Future *fut) {
 }
 
 void on_client_connect(EventLoop *loop, Future *fut) {
+    auto &data = *reinterpret_cast<ServerData *>(fut->memptr);
+    auto server = reinterpret_cast<Server *>(data.memptr);
 
+    int client_fd = accept(fut->fd, nullptr, nullptr);
+    std::cout << NAME << SPACE << "Client#" << client_fd << " Connected to the Server#" << data.srvfd << ": " << strerror(errno) << std::endl;
+
+    server->connections.push_back(Connection{data.initiator, client_fd});
+
+    Future &client_message_fut = loop->add_callback(client_fd, on_client_message);
+    client_message_fut.memptr = &data;
 }
 
 void on_client_message(EventLoop *loop, Future *fut) {
+    auto &data = *reinterpret_cast<ServerData *>(fut->memptr);
+    auto server = reinterpret_cast<Server *>(data.memptr);
 
+    char buffer[BUFF_SIZE];
+    int bytes_read = read(fut->fd, buffer, BUFF_SIZE);
+    if (!check_client_read(bytes_read, data, loop, server, fut))
+        return;
+    data.client_len = bytes_read;
+    data.dst = fut->fd;
+    memcpy(data.buffer, buffer, bytes_read);
+    Future &newfut = loop->add_callback(data.initiator, on_server_can_write);
+    newfut.memptr = &data;
+    newfut.modify_events(EPOLLOUT, loop);
 }
 
 
 void on_client_can_write(EventLoop *loop, Future *fut) {
     auto &data = *reinterpret_cast<ServerData *>(fut->memptr);
     data.locked = false;
+}
+
+void on_server_can_write(EventLoop *loop, Future *fut) {
+    auto &data = *reinterpret_cast<ServerData *>(fut->memptr);
+    auto server = reinterpret_cast<Server *>(data.memptr);
+
+    if (fut->state == 0) {
+        write_struct(DataHeader{data.dst, data.client_len}, data.initiator);
+        fut->state = 1;
+    } else {
+        write(data.initiator, data.buffer, data.client_len);
+        data.dst = 0;
+        data.client_len = 0;
+        fut->finish(loop);
+    }
 }
 
 void on_server_exit(EventLoop *loop, Future *fut) {

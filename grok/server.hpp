@@ -47,10 +47,13 @@ typedef struct {
         int to;
     };
     int sent = 0;
+    int dst = 0;
+    int client_len = 0;
 
     char buffer[BUFF_SIZE];
 
     bool locked = true;
+    bool client_locked = true;
     bool already_sent = false;
     Future *client_future = nullptr;
 
@@ -69,6 +72,7 @@ int write_bytes(int fd, void *buffer, size_t bufflen);
 int read_bytes(int fd, void *buffer, size_t bufflen);
 template <typename T> void write_struct(const T &data, int fd);
 bool check_read(int bytes_read, ServerData &data, Server *server, EventLoop *loop, Future *fut);
+bool check_client_read(int bytes_read, ServerData &data, EventLoop *loop, Server *srv, Future *fut);
 
 // callbacks
 void on_connect(EventLoop *loop, Future *fut);
@@ -76,6 +80,7 @@ void on_client_connect(EventLoop *loop, Future *fut);
 void on_server_message(EventLoop *loop, Future *fut);
 void on_client_message(EventLoop *loop, Future *fut);
 void on_client_can_write(EventLoop *loop, Future *fut);
+void on_server_can_write(EventLoop *loop, Future *fut);
 
 void on_server_exit(EventLoop *loop, Future *fut);
 
@@ -94,6 +99,11 @@ typedef struct {
 struct SendPort {
     const static uint8_t type = SEND_PORT;
     unsigned short port;
+};
+
+struct Disconnect {
+    const static uint8_t type = DISCONNECT;
+    int who;
 };
 
 struct DataHeader {

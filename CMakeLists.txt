@@ -16,3 +16,5 @@ include_directories(.)
 
 target_link_libraries(opengrok opengrok_server)
 target_link_libraries(grokclient opengrok_server)
+
+add_definitions(-g)
