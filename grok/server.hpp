@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 
 #include <vector>
+#include <array>
 
 #define BIND_ADDR INADDR_ANY
 
@@ -60,6 +61,9 @@ typedef struct {
     time_t buffer_lock_time = 0;
 
     int length = 0;
+
+    Future *client_message_fut = nullptr;
+    Future *on_server_send = nullptr;
 } ServerData;
 
 
@@ -97,17 +101,22 @@ typedef struct {
 } InternalServer;
 
 struct SendPort {
-    const static uint8_t type = SEND_PORT;
+    inline const static uint8_t type = SEND_PORT;
     unsigned short port;
 };
 
 struct Disconnect {
-    const static uint8_t type = DISCONNECT;
+    inline const static uint8_t type = DISCONNECT;
+    int who;
+};
+
+struct Connect {
+    inline const static uint8_t type = CONNECT;
     int who;
 };
 
 struct DataHeader {
-    const static uint8_t type = WRITE;
+    inline const static uint8_t type = WRITE;
     int user = 0;
     int length = 0;
 };

@@ -33,8 +33,11 @@ int read_bytes(int fd, void *buffer, size_t bufflen) {
 
 template <typename T>
 void write_struct(const T &data, int fd) {
-    T copy = data;
-    write(fd, &copy, sizeof(T));
+    char outcoming[sizeof(T)+sizeof(uint8_t)];
+    memcpy(outcoming, &T::type, sizeof(uint8_t));
+    memcpy(outcoming+sizeof(uint8_t), &data, sizeof(T));
+
+    write(fd, outcoming, sizeof(uint8_t)+sizeof(T));
 }
 
 bool check_read(int bytes_read, ServerData &data, Server *server, EventLoop *loop, Future *fut) {
@@ -83,12 +86,17 @@ void on_connect(EventLoop *loop, Future *fut) {
 
     server->servers.push_back(InternalServer{newsockfd, client_fd});
 
+    auto server_dat = new ServerData{newsockfd, client_fd, server};
+
     Future &on_client_conn = loop->add_callback(newsockfd, on_client_connect);
-    on_client_conn.memptr = new ServerData{newsockfd, client_fd, server};
+    on_client_conn.memptr = server_dat;
 
     Future &on_server_send = loop->add_callback(client_fd, on_server_message);
     on_server_send.memptr = on_client_conn.memptr;
     on_server_send.on_finished = on_server_exit;
+
+    server_dat->on_server_send = &on_server_send;
+    server_dat->client_message_fut = &on_client_conn;
 
     write_struct(SendPort{bindport}, client_fd);
 }
@@ -178,8 +186,8 @@ void on_client_connect(EventLoop *loop, Future *fut) {
 
     int client_fd = accept(fut->fd, nullptr, nullptr);
     std::cout << NAME << SPACE << "Client#" << client_fd << " Connected to the Server#" << data.srvfd << ": " << strerror(errno) << std::endl;
-
     server->connections.push_back(Connection{data.initiator, client_fd});
+    write_struct(Connect{client_fd}, data.initiator);
 
     Future &client_message_fut = loop->add_callback(client_fd, on_client_message);
     client_message_fut.memptr = &data;
@@ -224,7 +232,10 @@ void on_server_can_write(EventLoop *loop, Future *fut) {
 
 void on_server_exit(EventLoop *loop, Future *fut) {
     auto data = reinterpret_cast<ServerData *>(fut->memptr);
-    std::cout << NAME << SPACE << "Server Pointer#" << data << " freed" << std::endl;
+    data->on_server_send->on_finished = nullptr;
+    data->client_message_fut->on_finished = nullptr; // valgrind рвет гдет на new ServerData, а еще если это убрать буит sigsegv
+    data->on_server_send->finish(loop);
+    data->client_message_fut->finish(loop);
     delete data;
 }
 
