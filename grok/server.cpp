@@ -226,6 +226,7 @@ void on_client_connect(EventLoop *loop, Future *fut) {
     char sendbuffer[HEADER_SIZE+sizeof(int)];
     copy_connect(client_fd, sendbuffer);
     loop->push_packet(sendbuffer, HEADER_SIZE+sizeof(int), data.initiator, std::string::npos);
+    data.server->connections.push_back(Connection{data.initiator, client_fd});
 }
 
 void on_client_message(EventLoop *loop, Future *fut) {

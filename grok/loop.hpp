@@ -103,7 +103,7 @@ public:
     Future &create_future(int fd, void (*_callback)(EventLoop *fut, Future *), uint32_t events = EPOLLIN);
     Future &insert_to_top(int fd, void (*_callback)(EventLoop *fut, Future *), uint32_t events = EPOLLIN);
 
-    QueueItem &push_packet(void *buffer, int length, int fd, size_t pos = 0, bool skip_fd = false);
+    QueueItem &push_packet(void *buffer, int length, int fd, size_t pos = 0, bool skip_fd = true);
     bool in_queue(int fd, uint32_t events, size_t &epos);
 
     bool in_futures(epoll_event &ev, std::vector<Future*> &futs);

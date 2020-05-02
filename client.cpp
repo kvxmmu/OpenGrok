@@ -63,8 +63,26 @@ int find_fd(int cfd, connections_t &connections) {
     return -1;
 }
 
-void ass(EventLoop *loop, Future *fut) {
+void client_mon(EventLoop *loop, Future *fut) {
+    EBall &ebal = *reinterpret_cast<EBall *>(fut->future_data);
+    char buffer[BUFF_SIZE];
 
+    int bytes = read_bytes(fut->fd, buffer, BUFF_SIZE);
+
+    int internal_fd = find_fd(fut->fd, ebal.connections);
+
+    if (bytes <= 0) {
+        char dis[HEADER_SIZE+sizeof(int)];
+        copy_disconnect(internal_fd, dis);
+        loop->push_packet(dis, HEADER_SIZE+sizeof(int), ebal.sockfd, std::string::npos, true);
+
+        std::cout << "Server#" << fut->fd << " closed connection for the Client#" << internal_fd << std::endl;
+        loop->finish(fut);
+        return;
+    }
+    char outbuffer[HEADER_SIZE+sizeof(int)+sizeof(int)+bytes];
+    copy_packet(internal_fd, bytes, buffer, outbuffer);
+    loop->push_packet(outbuffer, HEADER_SIZE+sizeof(int)+sizeof(int)+bytes, ebal.sockfd, std::string::npos, true);
 }
 
 void on_server_message(EventLoop *loop, Future *fut) {
@@ -112,15 +130,16 @@ void on_server_message(EventLoop *loop, Future *fut) {
         }
     } else if (fut->state == GET_WHO_CONNECTED) {
         read_bytes(fut->fd, &ebal.who, sizeof(int), true);
-        // std::cout << NAME << SPACE << "Client#" << ebal.who << " connected" << std::endl;
+        std::cout << NAME << SPACE << "Client#" << ebal.who << " connected" << std::endl;
 
         sockaddr_in caddr = create_addr(ebal.port, inet_addr("127.0.0.1"));
         int esfd = connect_get_fd(caddr);
 
 
         fut->state = GET_TYPE;
-        Future &f = loop->create_future(esfd, ass);
-        f.skip_next = false;
+        Future &mon = loop->create_future(esfd, client_mon);
+        mon.skip_next = false;
+        mon.future_data = &ebal;
 
         ebal.connections[ebal.who] = esfd;
 
@@ -142,8 +161,12 @@ void on_server_message(EventLoop *loop, Future *fut) {
 
 
 int main(int argc, char **argv) {
+    if (argc < 2) {
+        std::cerr << argv[0] << " usage: " << argv[0] << " [port]" << std::endl;
+        return 0;
+    }
 
-    unsigned short port = 2280;
+    unsigned short port = atoi(argv[1]);
 
     connections_t connections;
 
