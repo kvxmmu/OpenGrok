@@ -1,142 +1,105 @@
-#include <grok/evloop.hpp>
+//
+// Created by kvxmmu on 5/1/20.
+//
 
-#include <iostream>
+#ifndef OPENGROK_SERVER_HPP
+#define OPENGROK_SERVER_HPP
 
-#include <sys/socket.h>
-#include <unistd.h>
+#include <grok/loop.hpp>
+#include <grok/bin.hpp>
+#include <grok/utils.hpp>
+
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 
-#include <vector>
-#include <array>
+#include <unordered_set>
 
-#define BIND_ADDR INADDR_ANY
-
-#define write(fd, buffer, bufflen) write_bytes(fd, buffer, bufflen)
-#define read(fd, buffer, bufflen) read_bytes(fd, buffer, bufflen)
-
-#define SEND_PORT 1
-#define CONNECT 2
-#define WRITE 3
-#define DISCONNECT 4
-
-#define NAME "[OpenGrok]"
-#define SPACE ' '
-
-#define GET 0
-#define GET_FROM 1
-#define GET_TO 1
-#define GET_LENGTH 2
-#define GET_DISCONNECTED 3
+#define GET_TYPE 0
+#define GET_WHO_DISCONNECTED 1
+#define GET_WHO_SENT 2
+#define GET_LENGTH 3
 #define GET_MESSAGE 4
 
-#define BUFF_SIZE 4096
 
-namespace {
-    int y = 1;
-} // external linkage
+#define RESET {fut->state = GET_TYPE;\
+data.sent = 0;\
+data.length = 0;\
+data.sent_block = false;\
+return;}
 
-
-typedef struct {
-    int srvfd = 0;
-    int initiator = 0;
-    void *memptr = nullptr;
-
-    uint8_t type = 0;
-    union {
-        int from = 0;
-        int to;
-    };
-    int sent = 0;
-    int dst = 0;
-    int client_len = 0;
-
-    char buffer[BUFF_SIZE];
-
-    bool locked = true;
-    bool client_locked = true;
-    bool already_sent = false;
-    Future *client_future = nullptr;
-
-    time_t buffer_lock_time = 0;
-
-    int length = 0;
-
-    Future *client_message_fut = nullptr;
-    Future *on_server_send = nullptr;
-} ServerData;
-
+#define HOST_ADDR INADDR_ANY
 
 class Server;
 
-// helpers
-sockaddr_in create_addr(unsigned short port, in_addr_t listen_addr = INADDR_ANY);
-unsigned short get_listen_port(int fd);
-int write_bytes(int fd, void *buffer, size_t bufflen);
-int read_bytes(int fd, void *buffer, size_t bufflen);
-template <typename T> void write_struct(const T &data, int fd);
-bool check_read(int bytes_read, ServerData &data, Server *server, EventLoop *loop, Future *fut);
-bool check_client_read(int bytes_read, ServerData &data, EventLoop *loop, Server *srv, Future *fut);
-
-// callbacks
-void on_connect(EventLoop *loop, Future *fut);
-void on_client_connect(EventLoop *loop, Future *fut);
-void on_server_message(EventLoop *loop, Future *fut);
-void on_client_message(EventLoop *loop, Future *fut);
-void on_client_can_write(EventLoop *loop, Future *fut);
-void on_server_can_write(EventLoop *loop, Future *fut);
-
-void on_server_exit(EventLoop *loop, Future *fut);
-
-// Main classes
-
 typedef struct {
-    int server; // connection initiator
-    int client; // connected client
+    int server;
+    int client;
 } Connection;
 
 typedef struct {
-    int sockfd;
+    int server_fd;
     int initiator;
 } InternalServer;
 
-struct SendPort {
-    inline const static uint8_t type = SEND_PORT;
-    unsigned short port;
-};
 
-struct Disconnect {
-    inline const static uint8_t type = DISCONNECT;
-    int who;
-};
+bool operator==(const InternalServer &srv1, const InternalServer &srv2);
 
-struct Connect {
-    inline const static uint8_t type = CONNECT;
-    int who;
-};
+typedef struct {
+    int server_fd = 0;
+    int initiator = 0;
 
-struct DataHeader {
-    inline const static uint8_t type = WRITE;
-    int user = 0;
+    int who = 0;
     int length = 0;
-};
+    int sent = 0;
+
+    bool sent_block = false;
+    Future *curr = nullptr;
+
+    Server *server = nullptr;
+} EballData;
+
+namespace std {
+    template<>
+    struct hash<InternalServer> {
+    public:
+        std::size_t operator()(const InternalServer &internal) const {
+            return std::hash<int>()(internal.server_fd);
+        }
+    };
+}
 
 class Server {
 public:
     EventLoop loop;
+    unsigned short port;
+
+    std::unordered_set<InternalServer> servers;
+    std::vector<Connection> connections;
+
+    // socket data
+    int sockfd{};
     sockaddr_in addr{};
 
-    std::vector<Connection> connections;
-    std::vector<InternalServer> servers;
+    // methods
+    explicit Server(unsigned short _port);
 
-    unsigned short listen_port{};
-
-    int sockfd = 0;
-
-    void remove_server(int srvfd);
-    void remove_all_server_clients(int srvfd);
     void remove_connection(const Connection &conn);
+    void remove_server(int fd);
+    void remove_all_connections(int srvfd);
 
-    void run_until_complete();
-    void init(unsigned short port);
+    void poll();
 };
+
+// helpers
+bool check_read(int bytes, Server *srv, Future *ft, int esrv, EballData &data);
+
+// callbacks
+void on_connect(EventLoop *loop, Future *fut);
+void on_client_connect(EventLoop *loop, Future *fut);
+void on_client_message(EventLoop *loop, Future *fut);
+void on_server_message(EventLoop *loop, Future *fut);
+void on_progress(QueueItem *item);
+
+
+#endif //OPENGROK_SERVER_HPP

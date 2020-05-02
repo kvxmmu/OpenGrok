@@ -1,21 +1,19 @@
 #include <iostream>
-#include <grok/server.hpp>
 
+#include <grok/server.hpp>
 #include <csignal>
 
-#define MAX_EVENTS 4096
+
 #define LISTEN_PORT 8089
 
-bool running = true;
-
 int main() {
-    Server server;
-    server.init(LISTEN_PORT);
-
     signal(SIGPIPE, SIG_IGN);
+    std::ios::sync_with_stdio(false);
 
-    std::cout << NAME << SPACE << "Server started listening " << LISTEN_PORT << " port" << std::endl;
+    std::cout << NAME << SPACE << "Start listening on " << LISTEN_PORT << " port" << std::endl;
+    Server server(LISTEN_PORT);
 
-    server.run_until_complete();
+    server.poll();
+
     return 0;
 }
