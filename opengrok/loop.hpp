@@ -44,7 +44,6 @@ public:
 class AbstractProtocol {
 public:
     EventLoop *loop = nullptr;
-    bool is_server = true;
 
     int sockfd{};
     sockaddr_in addr{};
@@ -52,7 +51,7 @@ public:
     unsigned short port;
     in_addr_t in_address;
 
-    explicit AbstractProtocol(unsigned short _port, in_addr_t _in_address = INADDR_ANY);
+    explicit AbstractProtocol(unsigned short _port, in_addr_t _in_address = INADDR_ANY, int created_fd = -1);
 
     virtual void init(EventLoop *_loop) = 0;
 
@@ -65,6 +64,8 @@ public:
     virtual void bind();
 
     virtual void dispose(){}
+
+    virtual bool is_server() {return true;}
 };
 
 class EventLoop { // only for this project

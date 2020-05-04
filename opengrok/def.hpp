@@ -16,6 +16,8 @@
 #include <cstring>
 #include <unistd.h>
 
+#include <cstdlib>
+
 #include <netinet/in.h>
 
 
@@ -23,7 +25,7 @@ sockaddr_in create_addr(unsigned short port, in_addr_t in_address = INADDR_ANY);
 unsigned short get_listen_port(int fd);
 
 int write_bytes(int fd, void *buffer, size_t bufflen);
-int read_bytes(int fd, void *buffer, size_t bufflen);
+int read_bytes(int fd, void *buffer, size_t bufflen, bool fatal = false);
 
 void set_reuse(int fd);
 

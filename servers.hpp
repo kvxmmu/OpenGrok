@@ -11,6 +11,10 @@
 #include <opengrok/utils.hpp>
 
 #define GET_TYPE 0
+#define GET_WHO_DISCONNECTED 1
+#define GET_WHO_SENT 2
+#define GET_LENGTH 3
+#define GET_MESSAGE 4
 
 struct InternalServer {
     int fd;
@@ -52,6 +56,10 @@ public:
     int state = GET_TYPE;
     UsagePool usage;
 
+    int sent{};
+    int length{};
+
+    int to = 0;
 
     explicit ProxyServer(unsigned short _port, in_addr_t _in_address = INADDR_ANY);
 
@@ -67,7 +75,6 @@ public:
     int find_by_initiator(int initiator);
 
     void send_disconnect(int who, int initiator, int srvfd);
-    void send_connect(int);
 
     void remove_from_all(int fd);
 

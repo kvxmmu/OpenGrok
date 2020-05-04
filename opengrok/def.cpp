@@ -32,12 +32,14 @@ int write_bytes(int fd, void *buffer, size_t bufflen) {
     return res;
 }
 
-int read_bytes(int fd, void *buffer, size_t bufflen) {
+int read_bytes(int fd, void *buffer, size_t bufflen, bool fatal) {
     int res = read(fd, buffer, bufflen);
 
-    if (res < 0)
+    if (res < 0) {
         perror("read()");
-
+        if (fatal)
+            exit(0);
+    }
     return res;
 }
 

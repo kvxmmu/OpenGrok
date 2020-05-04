@@ -55,7 +55,7 @@ bool PacketsQueue::check(int fd, bool &end) {
         front->on_progress(front);
     if (front->sent >= front->length) {
         qitems.pop_front();
-        end = true;
+        end = qitems.empty();
     } else
         end = false;
 

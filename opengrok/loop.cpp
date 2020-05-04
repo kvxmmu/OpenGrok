@@ -76,8 +76,12 @@ void EpollSelector::remove_from_epoll(int fd, epoll_event &ev) const {
 
 // AbstractServer class
 
-AbstractProtocol::AbstractProtocol(unsigned short _port, in_addr_t _in_address) : port(_port), in_address(_in_address){
-    this->sockfd = socket(AF_INET, SOCK_STREAM, 0);
+AbstractProtocol::AbstractProtocol(unsigned short _port, in_addr_t _in_address, int created_fd) : port(_port), in_address(_in_address) {
+
+    if (created_fd == -1)
+        this->sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    else
+        this->sockfd = created_fd;
 
     this->addr = create_addr(_port, _in_address);
 }
@@ -124,7 +128,7 @@ void EventLoop::run() {
             if (ev.events & EPOLLOUT) {
                 this->perform_queue_tasks(ev);
             } else if (ev.data.fd == this->protocol->sockfd) {
-                if (this->protocol->is_server)
+                if (this->protocol->is_server())
                     this->protocol->on_connect();
                 else {
                     char pedik;
@@ -158,9 +162,21 @@ void EventLoop::run() {
             } else if (this->protocols.find(ev.data.fd) != this->protocols.end()) {
                 AbstractProtocol *server_protocol = this->protocols.at(ev.data.fd);
 
-                this->create_client_to = server_protocol->sockfd;
-                server_protocol->on_connect();
-                this->create_client_to = -1;
+                if (server_protocol->is_server()) {
+                    this->create_client_to = server_protocol->sockfd;
+                    server_protocol->on_connect();
+                    this->create_client_to = -1;
+                } else {
+                    char pidor;
+                    bytes = recv(ev.data.fd, &pidor, sizeof(char), MSG_PEEK);
+
+                    if (bytes == 0) {
+                        server_protocol->on_disconnect(ev.data.fd);
+                        continue;
+                    }
+                    server_protocol->on_data_received(ev.data.fd);
+
+                }
             }
         }
 

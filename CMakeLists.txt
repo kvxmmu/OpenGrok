@@ -11,8 +11,10 @@ add_library(event_loop opengrok/loop.cpp opengrok/loop.hpp opengrok/packets_queu
 add_library(utils opengrok/utils.cpp opengrok/utils.hpp)
 
 add_executable(opengrok2 main.cpp)
+add_executable(grok client/client.cpp client/clients.cpp client/clients.hpp)
 
 target_link_libraries(opengrok2 event_loop defs server_lib utils)
+target_link_libraries(grok event_loop defs utils)
 
 link_directories(opengrok/)
 include_directories(.)
