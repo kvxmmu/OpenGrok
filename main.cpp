@@ -1,19 +1,26 @@
 #include <iostream>
 
-#include <grok/server.hpp>
+#include <servers.hpp>
 #include <csignal>
 
+#ifdef WIN32
+# include <windows.h>
+// maybe this will work
+#endif
 
-#define LISTEN_PORT 8089
+#define PROXY_PORT static_cast<unsigned short>(8091)
+
+
 
 int main() {
     signal(SIGPIPE, SIG_IGN);
-    std::ios::sync_with_stdio(false);
 
-    std::cout << NAME << SPACE << "Start listening on " << LISTEN_PORT << " port" << std::endl;
-    Server server(LISTEN_PORT);
+    std::cout << NAME << SPACE << "Listening on the 0.0.0.0:" << PROXY_PORT << "..." << std::endl;
 
-    server.poll();
+    ProxyServer server(PROXY_PORT);
 
+    EventLoop loop(reinterpret_cast<AbstractProtocol *>(&server));
+
+    loop.run();
     return 0;
 }
