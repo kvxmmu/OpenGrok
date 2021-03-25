@@ -118,6 +118,10 @@ void GrokLoop::run() {
                         if (!observer->is_connected) {
                             observer->on_connect();
 
+                            if (this->queue.is_queue_exists(fd) && this->queue.get_queue(fd).empty()) {
+                                this->selector.remove(fd, EPOLLOUT);
+                            }
+
                             continue;
                         }
 
@@ -135,6 +139,7 @@ void GrokLoop::run() {
                             this->selector.remove(fd, 0, true);
                             close(fd);
                             this->observers.erase(fd);
+                            this->queue.clear_queue(fd);
 
                             continue;
                         }
@@ -153,12 +158,23 @@ void GrokLoop::run() {
             } else if (this->mapped_clients.find(fd) != this->mapped_clients.end()) {
                 auto observer = this->mapped_clients.at(fd);
 
+                if (event.events & EPOLLOUT) {
+                    bool remove_event = this->queue.perform(fd);
+
+                    if (remove_event) {
+                        this->selector.remove(fd, EPOLLOUT);
+                    }
+
+                    continue;
+                }
+
                 if (is_disconnected(fd)) {
                     observer->on_disconnect(fd);
 
                     this->selector.remove(fd, 0, true);
                     close(fd);
                     this->unmap_client(fd);
+                    this->queue.clear_queue(fd);
 
                     continue;
                 }
@@ -236,5 +252,38 @@ void GrokLoop::capture(int fd, const future_callback_t &callback) {
 
     auto &futures_q = this->futures[fd];
     futures_q.push_back(future);
+}
+
+void GrokLoop::send(int fd, char *buffer, size_t length) {
+    this->queue.push(fd, buffer, length);
+
+    this->selector.add(fd, EPOLLOUT);
+}
+
+void GrokLoop::force_disconnect(int fd) {
+    this->selector.remove(fd, 0, true);
+    close(fd);
+    this->unmap_client(fd);
+    this->queue.clear_queue(fd);
+}
+
+void GrokLoop::remove_observer(int fd) {
+    auto observer = this->observers.at(fd);
+    std::vector<int> fds;
+    fds.reserve(this->mapped_clients.size() >> 2u);
+
+    for (auto mapped_client : this->mapped_clients) {
+        if (mapped_client.second == observer) {
+            fds.push_back(mapped_client.first);
+        }
+    }
+
+    for (auto cfd : fds) {
+        this->force_disconnect(fd);
+    }
+
+    this->selector.remove(observer->sockfd, 0, true);
+    close(observer->sockfd);
+    this->queue.clear_queue(observer->sockfd);
 }
 

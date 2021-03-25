@@ -106,6 +106,12 @@ namespace GLog {
 
             return logger;
         }
+
+        friend Logger &operator<<(GLog::Logger &logger, uint64_t uint64) {
+            logger.broadcast(std::to_string(uint64));
+
+            return logger;
+        }
     };
 }
 

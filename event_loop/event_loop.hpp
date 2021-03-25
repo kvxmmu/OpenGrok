@@ -182,6 +182,10 @@ public:
     void recv(int fd, size_t count, const future_callback_t &callback);
     void capture(int fd, const future_callback_t &callback);
 
+    void send(int fd, char *buffer, size_t length);
+    void force_disconnect(int fd);
+    void remove_observer(int fd);
+
     void run();
 };
 

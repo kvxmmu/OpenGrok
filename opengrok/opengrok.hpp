@@ -13,6 +13,8 @@
 #include "interfaces.hpp"
 #include "id_pool.hpp"
 
+#include "opengrok_proxy.hpp"
+
 namespace OpenGrok {
     class MainServer : public IServer, public AbstractObserver {
     public:
@@ -45,10 +47,21 @@ namespace OpenGrok {
             this->loop->recv(fd, sizeof(uint8_t), NONSTATIC_CALLBACK(this->type_getter));
         }
 
+        void write_port(int fd, uint16_t lport);
+        void write_error(int fd, uint8_t error_code, const char *error_description);
+
+        void disconnect_target_getter(Future *future);
+        void packet_getter(Future *future, uint64_t client_id,
+                           uint32_t length);
         void type_getter(Future *future);
 
         int on_connect() override;
         void on_disconnect(int fd) override;
+
+        void connect(int dest, GIDPool::value_type client_id) override;
+        void forward(int dest,
+                     GIDPool::value_type client_id, char *buffer, uint32_t length) override;
+        void disconnect(int dest, GIDPool::value_type client_id) override;
     };
 }
 
