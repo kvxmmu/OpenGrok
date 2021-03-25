@@ -44,6 +44,13 @@ static int read_exact(int fd, char *buffer, size_t length) {
     return received;
 }
 
+static constexpr void dynamic_assert(bool expr, const char *message) {
+    if (!expr) {
+        perror("assert()");
+        throw Exceptions::AssertError(message);
+    }
+}
+
 static int write_bytes(int fd, char *buffer, size_t length) noexcept {
     int status = write(fd, buffer, length);
 

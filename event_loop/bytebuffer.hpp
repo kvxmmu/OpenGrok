@@ -135,7 +135,7 @@ public:
     Endianess endianess;
 
     explicit BufferReader(char *_buffer,
-            Endianess _endianess) : buffer(_buffer), endianess(_endianess) {
+            Endianess _endianess = LITTLE) : buffer(_buffer), endianess(_endianess) {
 
     }
 

@@ -17,11 +17,17 @@
 #include <cstdio>
 
 #include "inet.hpp"
+#include "event_loop_errors.hpp"
+
+#define NONSTATIC_CALLBACK(callback) [this](Future *future) { callback(future); }
+#define NONSTATIC_CALLBACK1(callback, arg1) [this, arg1](Future *future) { callback(future, arg1); }
+#define NONSTATIC_CALLBACK2(callback, arg1, arg2) [this, arg1, arg2](Future *future) { callback(future, arg1, arg2); }
 
 class Future;
 class SendItem;
 
 using sendqueue_t = std::deque<SendItem>;
+using futures_t = std::deque<Future>;
 using future_callback_t = std::function<void(Future *)>;
 
 class Future {
@@ -36,13 +42,22 @@ public:
 
     char *buffer = nullptr;
     size_t capacity = 0;
+    size_t received = 0;
+
+    int fd;
 
     future_callback_t callback;
+    bool pending;
 
-    Future(FutureType _type,
+    Future(FutureType _type, int _fd,
             std::allocator<char> *_allocator,
-            future_callback_t _callback) : type(_type), allocator(_allocator), callback(std::move(_callback)) {
+            future_callback_t _callback) : type(_type), fd(_fd), allocator(_allocator), pending(true), callback(std::move(_callback)) {
 
+    }
+
+    void complete() {
+        this->pending = false;
+        this->received = 0;
     }
 
     void alloc(size_t cap) {
@@ -97,10 +112,14 @@ public:
         return false;
     }
 
-    inline void remove_if_empty(sendqueue_t &queue, int fd) {
+    inline bool remove_if_empty(sendqueue_t &queue, int fd) {
         if (queue.empty()) {
             this->queues.erase(fd);
+
+            return true;
         }
+
+        return false;
     }
 
     void push(int fd, char *buffer, size_t length);
@@ -116,7 +135,7 @@ public:
     std::allocator<char> allocator;
     SendQueue queue;
 
-    std::unordered_map<int, Future> futures;
+    std::unordered_map<int, futures_t> futures;
     std::unordered_map<int, AbstractObserver *> observers;
     std::unordered_map<int, AbstractObserver *> mapped_clients;
 
@@ -125,6 +144,8 @@ public:
     GrokLoop() : queue(&this->allocator) {
 
     }
+
+    ///// Static Helpers
 
     static IPv4 accept4(int server_fd) {
         sockaddr_in caddr{};
@@ -135,6 +156,31 @@ public:
 
         return IPv4(caddr, client_fd);
     }
+
+    static sockaddr_in connect4(int fd,
+            const char *ip, const uint16_t port) {
+        sockaddr_in caddr{};
+        caddr.sin_port = htons(port);
+        caddr.sin_addr.s_addr = inet_addr(ip);
+        caddr.sin_family = AF_INET;
+
+        ::connect(fd, reinterpret_cast<sockaddr *>(&caddr), sizeof(caddr));
+
+        return caddr;
+    }
+
+    /////
+
+    [[maybe_unused]] void add_observer(AbstractObserver *observer);
+
+    void handle_futures(int fd);
+    void remove_futures_if_empty(int fd);
+
+    void map_client(int fd, AbstractObserver *observer);
+    void unmap_client(int fd);
+
+    void recv(int fd, size_t count, const future_callback_t &callback);
+    void capture(int fd, const future_callback_t &callback);
 
     void run();
 };

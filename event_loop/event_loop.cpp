@@ -9,7 +9,7 @@
 
 bool SendQueue::perform(int fd) {
     if (!this->is_queue_exists(fd)) {
-        return;
+        return true;
     }
 
     auto &queue = this->get_queue(fd);
@@ -19,20 +19,20 @@ bool SendQueue::perform(int fd) {
 
         printf("[GrokLoop:SendQueue] Queue is empty\n");
 
-        return;
+        return true;
     }
 
     auto &front = queue.front();
 
-    int bytes_read = read_bytes(fd, front.buffer+front.received,
+    int written = write_bytes(fd, front.buffer+front.received,
             front.length - front.received);
 
-    if (bytes_read < 0) {
+    if (written < 0) {
         front.received = front.length;
 
         perror("SendQueue::perform()");
     } else {
-        front.received += bytes_read;
+        front.received += written;
     }
 
     bool done = front.received >= front.length;
@@ -76,6 +76,165 @@ void SendQueue::push(int fd, char *buffer, size_t length) {
     queue.push_back(item);
 }
 
+//// GrokLoop
+
+[[maybe_unused]] void GrokLoop::add_observer(AbstractObserver *observer) {
+    observer->init(this);
+
+    this->selector.add(observer->sockfd, observer->is_server ? EPOLLIN : EPOLLIN | EPOLLOUT);
+    this->observers[observer->sockfd] = observer;
+
+    observer->post_init();
+}
+
+void GrokLoop::map_client(int fd, AbstractObserver *observer) {
+    this->mapped_clients[fd] = observer;
+}
+
+void GrokLoop::unmap_client(int fd) {
+    this->mapped_clients.erase(fd);
+}
+
 void GrokLoop::run() {
     this->running = true;
+
+    while (this->running) {
+        if (this->observers.empty()) {
+            throw Exceptions::NoObservers();
+        }
+
+        auto nfds = this->selector.wait();
+
+        for (size_t nfd = 0; nfd < nfds; nfd++) {
+            auto &event = this->selector.events_buffer[nfd];
+            auto fd = event.data.fd;
+
+            if (this->observers.find(fd) != this->observers.end()) {
+                auto observer = this->observers.at(fd);
+
+                if (!observer->is_server) {
+
+                    if (event.events & EPOLLOUT) {
+                        if (!observer->is_connected) {
+                            observer->on_connect();
+
+                            continue;
+                        }
+
+                        bool remove_event = this->queue.perform(fd);
+
+                        if (remove_event) {
+                            this->selector.remove(fd, EPOLLOUT);
+                        }
+
+                        continue;
+                    } else if (event.events & EPOLLIN) {
+                        if (is_disconnected(fd)) {
+                            observer->on_disconnect(fd);
+
+                            this->selector.remove(fd, 0, true);
+                            close(fd);
+                            this->observers.erase(fd);
+
+                            continue;
+                        }
+
+                        this->handle_futures(fd);
+                    } else {
+                        throw Exceptions::UnknownEpollEvent(event.events);
+                    }
+
+                }
+
+                auto new_fd = observer->on_connect();
+
+                this->selector.add(new_fd, EPOLLIN);
+                this->map_client(new_fd, observer);
+            } else if (this->mapped_clients.find(fd) != this->mapped_clients.end()) {
+                auto observer = this->mapped_clients.at(fd);
+
+                if (is_disconnected(fd)) {
+                    observer->on_disconnect(fd);
+
+                    this->selector.remove(fd, 0, true);
+                    close(fd);
+                    this->unmap_client(fd);
+
+                    continue;
+                }
+
+                this->handle_futures(fd);
+            }
+        }
+    }
 }
+
+void GrokLoop::remove_futures_if_empty(int fd) {
+    if (this->futures.at(fd).empty()) {
+        this->futures.erase(fd);
+    }
+}
+
+void GrokLoop::handle_futures(int fd) {
+    if (this->futures.find(fd) == this->futures.end()) {
+        throw Exceptions::NoFutures(fd);
+    }
+
+    auto &queue = this->futures.at(fd);
+
+    if (queue.empty()) {
+        this->futures.erase(fd);
+
+        throw Exceptions::NoFutures(fd);
+    }
+
+    auto &front = queue.front();
+
+    if (front.type == Future::READ) {
+        int bytes_read = read_bytes(fd, front.buffer+front.received,
+                front.capacity - front.received);
+
+        if (bytes_read < 0) {
+            throw Exceptions::NotEnoughBytes(1, -1); // at least one!
+        }
+
+        front.received += bytes_read;
+
+        if (front.received >= front.capacity) {
+            front.callback(&front);
+            front.dealloc();
+
+            queue.pop_front();
+        }
+    } else if (front.type == Future::CAPTURE) {
+        front.callback(&front);
+
+        if (!front.pending) {
+            queue.pop_front();
+        }
+    }
+}
+
+void GrokLoop::recv(int fd, size_t count, const future_callback_t &callback) {
+    Future future(Future::READ, fd, &this->allocator, callback);
+    future.alloc(count);
+
+    if (this->futures.find(fd) == this->futures.end()) {
+        this->futures[fd] = {};
+    }
+
+    auto &futures_q = this->futures[fd];
+    futures_q.push_back(future);
+}
+
+void GrokLoop::capture(int fd, const future_callback_t &callback) {
+    Future future(Future::CAPTURE, fd, &this->allocator, callback);
+
+    if (this->futures.find(fd) == this->futures.end()) {
+        this->futures[fd] = {};
+    }
+
+    auto &futures_q = this->futures[fd];
+    futures_q.push_back(future);
+}
+

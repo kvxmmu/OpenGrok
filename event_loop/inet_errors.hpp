@@ -18,6 +18,13 @@ namespace Exceptions {
 
         }
     };
+
+    class AssertError : public std::runtime_error {
+    public:
+        explicit AssertError(const char *text) : std::runtime_error(text) {
+
+        }
+    };
 }
 
 
