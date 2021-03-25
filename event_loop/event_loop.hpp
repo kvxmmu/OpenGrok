@@ -87,14 +87,24 @@ public:
         return this->queues.at(fd);
     }
 
-    inline void remove_if_empty(int fd) {
+    inline bool remove_if_empty(int fd) {
         if (this->get_queue(fd).empty()) {
+            this->queues.erase(fd);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    inline void remove_if_empty(sendqueue_t &queue, int fd) {
+        if (queue.empty()) {
             this->queues.erase(fd);
         }
     }
 
     void push(int fd, char *buffer, size_t length);
-    void perform(int fd);
+    bool perform(int fd);
 
     void clear_queue(int fd);
 };
@@ -110,6 +120,8 @@ public:
     std::unordered_map<int, AbstractObserver *> observers;
     std::unordered_map<int, AbstractObserver *> mapped_clients;
 
+    bool running = false;
+
     GrokLoop() : queue(&this->allocator) {
 
     }
@@ -121,7 +133,7 @@ public:
         int client_fd = ::accept(server_fd, reinterpret_cast<sockaddr *>(&caddr),
                                  &len);
 
-        return IPv4(caddr, server_fd);
+        return IPv4(caddr, client_fd);
     }
 
     void run();

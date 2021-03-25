@@ -7,7 +7,7 @@
 
 //// SendQueue
 
-void SendQueue::perform(int fd) {
+bool SendQueue::perform(int fd) {
     if (!this->is_queue_exists(fd)) {
         return;
     }
@@ -27,7 +27,25 @@ void SendQueue::perform(int fd) {
     int bytes_read = read_bytes(fd, front.buffer+front.received,
             front.length - front.received);
 
+    if (bytes_read < 0) {
+        front.received = front.length;
 
+        perror("SendQueue::perform()");
+    } else {
+        front.received += bytes_read;
+    }
+
+    bool done = front.received >= front.length;
+    bool is_empty = false;
+
+    if (done) {
+        this->allocator->deallocate(front.buffer, front.length);
+
+        queue.pop_front();
+        is_empty = this->remove_if_empty(queue, fd);
+    }
+
+    return is_empty;
 }
 
 void SendQueue::clear_queue(int fd) {
@@ -59,5 +77,5 @@ void SendQueue::push(int fd, char *buffer, size_t length) {
 }
 
 void GrokLoop::run() {
-
+    this->running = true;
 }
