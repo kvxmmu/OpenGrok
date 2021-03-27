@@ -1,23 +1,25 @@
 cmake_minimum_required(VERSION 3.16)
-project(grokloop)
+project(opengrok)
 
-set(CMAKE_CXX_STANDARD 17)
+include(FindPkgConfig)
+find_package(PkgConfig REQUIRED)
 
-add_library(event_loop event_loop/selector.cpp event_loop/selector.hpp
-        event_loop/event_loop.cpp event_loop/event_loop.hpp)
-add_library(opengrok opengrok/opengrok.cpp opengrok/opengrok.hpp
-        opengrok/glog.cpp opengrok/glog.hpp opengrok/types.h opengrok/interfaces.hpp opengrok/id_pool.hpp
-        opengrok/opengrok_proxy.cpp opengrok/opengrok_proxy.hpp)
-add_library(client_observer client/client_observer.cpp client/client_observer.hpp
-        client/client_proxy.cpp client/client_proxy.hpp)
+set(CMAKE_CXX_STANDARD 11)
 
-add_executable(opengrok_server main.cpp)
-add_executable(opengrok_client client.cpp)
+pkg_check_modules(LIBCONFIGPP REQUIRED IMPORTED_TARGET libconfig++)
 
-include_directories(event_loop/)
+add_library(cameleo_lib src/cameleo/selector.cpp src/cameleo/selector.hpp
+        src/cameleo/loop.cpp src/cameleo/loop.hpp)
 
-target_link_libraries(opengrok event_loop)
-target_link_libraries(opengrok_server opengrok)
-target_link_libraries(opengrok_client opengrok client_observer)
+add_library(grokbuffer src/grokbuffer/wrapper.cpp
+        src/grokbuffer/wrapper.hpp)
+
+include_directories(src/)
+
+add_executable(server main.cpp src/opengrok/server/server.cpp
+        src/opengrok/server/server.hpp)
+
+target_link_libraries(grokbuffer cameleo_lib PkgConfig::LIBCONFIGPP)
+target_link_libraries(server grokbuffer)
 
 

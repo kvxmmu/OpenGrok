@@ -135,7 +135,7 @@ public:
     Endianess endianess;
 
     explicit BufferReader(char *_buffer,
-            Endianess _endianess = LITTLE) : buffer(_buffer), endianess(_endianess) {
+                          Endianess _endianess = LITTLE) : buffer(_buffer), endianess(_endianess) {
 
     }
 
@@ -145,6 +145,30 @@ public:
         this->offset += sizeof(T);
 
         return value;
+    }
+
+    void read_buffer(char *dest, size_t length) {
+        memcpy(this->buffer+this->offset, dest, length);
+
+        this->offset += length;
+    }
+
+    template <typename string_size_t>
+    std::string read_string() {
+        auto size = this->read<string_size_t>();
+        std::string str(this->buffer+this->offset, size);
+
+        this->offset += size;
+
+        return str;
+    }
+
+    char *get_ptr(size_t size) {
+        char *ret_buff = this->buffer+this->offset;
+
+        this->offset += size;
+
+        return ret_buff;
     }
 };
 
@@ -166,60 +190,11 @@ public:
 
         this->offset += sizeof(T);
     }
-};
 
-class DynamicBufferWriter {
-public:
-    char *buffer = nullptr;
+    void write(char *_buffer, size_t length) {
+        memcpy(this->buffer+this->offset, _buffer, length);
 
-    const static size_t default_capacity = 8;
-
-    size_t capacity = default_capacity;
-    size_t end = 0;
-
-    Endianess endianess;
-
-    DynamicBufferWriter(Endianess _endianess = Endianess::LITTLE) : buffer(new char[default_capacity]), endianess(_endianess) {
-
-    }
-
-    void write(char *src, size_t count) {
-        if (this->end+count < this->capacity) {
-            auto new_buffer = new char[this->capacity << 1u];
-            memcpy(new_buffer, this->buffer, this->end);
-
-            delete[] this->buffer;
-
-            this->buffer = new_buffer;
-        }
-
-        memcpy(this->buffer+this->end, src, count);
-        this->end += count;
-    }
-
-    template <typename __ssize_t = uint8_t>
-    void write_string(const std::string &str) {
-        char *strbuff = new char[str.size() + sizeof(__ssize_t)];
-        int_to_bytes<__ssize_t>(str.size(), strbuff);
-
-        memcpy(strbuff+sizeof(__ssize_t), str.c_str(), str.size());
-
-        this->write(strbuff, str.size() + sizeof(__ssize_t));
-
-        delete[] strbuff;
-    }
-
-    template <typename Integral>
-    void write(Integral integral) {
-        char integral_buffer[sizeof(Integral)];
-
-        int_to_bytes<Integral>(integral, integral_buffer);
-
-        this->write(integral_buffer, sizeof(Integral));
-    }
-
-    ~DynamicBufferWriter() {
-        delete[] this->buffer;
+        this->offset += length;
     }
 };
 
