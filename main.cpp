@@ -1,7 +1,5 @@
 #include <iostream>
 
-#define _OPENGROK_DEBUG
-
 #include <grokbuffer/wrapper.hpp>
 #include <libconfig.h++>
 

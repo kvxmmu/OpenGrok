@@ -8,9 +8,18 @@
 #include <grokbuffer/wrapper.hpp>
 
 int main() {
+    int port;
+    std::string host;
+
+    std::cout << "Enter port: ";
+    std::cin >> port;
+
+    std::cout << "Enter host: ";
+    std::cin >> host;
+
     Cameleo::EventLoop loop;
-    auto protocol = new GrokBufferProtocol::Client("127.0.0.1", 6567);
-    OpenGrok::Client client("127.0.0.1", 2280,
+    auto protocol = new GrokBufferProtocol::Client(host.c_str(), 6567);
+    OpenGrok::Client client("127.0.0.1", port,
             loop, *protocol);
 
     protocol->packet_callback = [&client](BufferReader &reader, int fd,
