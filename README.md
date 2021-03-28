@@ -14,7 +14,7 @@
    maybe tomorrow i'll fix it
 - Whitelists/blacklists
 - Database based blacklists/whitelists
-- Implement functionality
+- Implement functionality (Done, OpenGrok is working)
 
 # Dependencies
 
