@@ -11,7 +11,7 @@ using namespace libconfig;
 
 int main() {
     Config config;
-    config.readFile("/home/kvxmmu/CLionProjects/opengrok/config/opengrok.cfg");
+    config.readFile(CONFIG_FILE_LOCATION);
 
     int port;
     std::string server_name;
