@@ -13,6 +13,8 @@ void Cameleo::EpollSelector::add(int fd, uint32_t levents,
     event.data.fd = fd;
     event.events = levents;
 
+    auto ev = EPOLLIN;
+
 #ifndef CAMELEO_DONT_HANDLE_EPOLL_ERRORS
     if (epoll_ctl(this->epfd, EPOLL_CTL_ADD,
             fd, &event) != 0) {

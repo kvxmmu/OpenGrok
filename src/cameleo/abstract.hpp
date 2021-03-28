@@ -40,7 +40,7 @@ namespace Cameleo {
 
         virtual int on_connect() = 0;
         virtual void post_connect(int fd) {}
-        virtual void on_disconnect() = 0;
+        virtual void on_disconnect(int fd) = 0;
 
         virtual ~IObserver() = default;
     };

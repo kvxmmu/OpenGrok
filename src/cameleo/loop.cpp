@@ -30,12 +30,23 @@ void Cameleo::EventLoop::run() {
 
     this->running = true;
 
+    int errors_count = 0;
+
     while (this->running) {
         int nfds = this->selector.wait();
 
         if (nfds < 0) {
-            throw std::runtime_error(strerror(errno));
+            if (errors_count > 0) {
+                throw std::runtime_error(strerror(errno));
+            }
+
+            perror("EpollSelector::wait()");
+            errors_count++;
+
+            continue;
         }
+
+        errors_count = 0;
 
         for (size_t nfd = 0; nfd < nfds; nfd++) {
             epoll_event &event = this->selector.events[nfd];
@@ -76,7 +87,7 @@ void Cameleo::EventLoop::run() {
 
                         continue;
                     } else if (Net::is_disconnected(fd)) {
-                        observer->on_disconnect();
+                        observer->on_disconnect(fd);
                         this->remove_observer(observer);
 
                         continue;
@@ -92,7 +103,7 @@ void Cameleo::EventLoop::run() {
                         auto observer = obs_pair.second;
 
                         if (observer->__has_client(fd)) {
-                            observer->on_disconnect();
+                            observer->on_disconnect(fd);
                             this->force_disconnect(fd);
                             observer->__clients.erase(fd);
 
@@ -137,6 +148,9 @@ void Cameleo::EventLoop::remove_observer(Cameleo::IObserver *observer) {
     }
 
     observer->__clients.clear();
+    this->selector.remove(observer->sockfd);
+    close(observer->sockfd);
+
     delete observer;
 }
 

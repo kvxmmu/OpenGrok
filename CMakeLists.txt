@@ -17,9 +17,14 @@ add_library(grokbuffer src/grokbuffer/wrapper.cpp
 include_directories(src/)
 
 add_executable(server main.cpp src/opengrok/server/server.cpp
-        src/opengrok/server/server.hpp)
+        src/opengrok/server/server.hpp src/opengrok/server/proxy_server.cpp
+        src/opengrok/server/proxy_server.hpp)
+add_executable(client client.cpp src/opengrok/client/client.cpp
+        src/opengrok/client/client.hpp src/opengrok/client/proxy_client.cpp
+        src/opengrok/client/proxy_client.hpp)
 
 target_link_libraries(grokbuffer cameleo_lib PkgConfig::LIBCONFIGPP)
 target_link_libraries(server grokbuffer)
+target_link_libraries(client grokbuffer)
 
 

@@ -66,7 +66,7 @@ namespace GrokBufferProtocol {
 
         int on_connect() override;
         void post_connect(int fd) override;
-        void on_disconnect() override;
+        void on_disconnect(int fd) override;
 
         //// Responders
 
@@ -75,6 +75,58 @@ namespace GrokBufferProtocol {
 
         ////
     };
+
+    class Client : public IObserver {
+    public:
+        sockaddr_in caddr{};
+
+        typedef uint8_t type_t;
+        typedef uint32_t length_t;
+
+        typedef std::function<void(BufferReader &, int,
+                type_t, length_t)> packet_callback_t;
+        typedef std::function<void(int)> motd_callback_t;
+        typedef std::function<void(int)> disconnect_callback_t;
+
+        Endianess endianess;
+
+        motd_callback_t       motd_callback       = nullptr;
+        packet_callback_t     packet_callback     = nullptr;
+        disconnect_callback_t disconnect_callback = nullptr;
+
+        Client(const char *ip,
+                uint16_t port, Endianess _endianess = Endianess::LITTLE) : IObserver(socket(AF_INET, SOCK_STREAM, false), false),
+                                                       endianess(_endianess) {
+            caddr.sin_port = htons(port);
+            caddr.sin_family = AF_INET;
+            caddr.sin_addr.s_addr = inet_addr(ip);
+        }
+
+        void post_init() override {
+            ::connect(this->sockfd, reinterpret_cast<sockaddr *>(&this->caddr),
+                    sizeof(this->caddr));
+            perror("connect()");
+        }
+
+        //// Getters
+
+        void type_getter(Future *future);
+        void length_getter(Future *future, type_t type);
+        void buffer_getter(Future *future, type_t type, length_t length);
+
+        ////
+
+        void fallback_to_type();
+
+        int on_connect() override;
+        void post_connect(int fd) override;
+        void on_disconnect(int fd) override;
+
+        void respond(type_t type, char *buffer, length_t length);
+    };
 }
+
+
+
 
 #endif //OPENGROK_WRAPPER_HPP
