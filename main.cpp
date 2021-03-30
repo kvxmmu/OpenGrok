@@ -58,6 +58,7 @@ int main() {
     protocol->error_type = ERROR;
     protocol->too_long_packet_description = TOO_LONG_PACKET_E;
     protocol->too_long_packet_error_code = TOO_LONG_PACKET;
+    protocol->max_packet_length = 4096u << 1u;
 
     protocol->packet_callback = [&main_server](BufferReader &reader, int fd, uint8_t type,
             uint32_t length) {

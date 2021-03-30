@@ -8,7 +8,7 @@
 #include <opengrok/id_pool.hpp>
 #include <unordered_map>
 
-#ifndef _OPENGROK_DEBUG
+#ifdef _OPENGROK_DEBUG
 #   define OPENGROK_PROXY_PORT 6560
 #else
 #   define OPENGROK_PROXY_PORT 0

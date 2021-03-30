@@ -105,7 +105,6 @@ namespace GrokBufferProtocol {
         void post_init() override {
             ::connect(this->sockfd, reinterpret_cast<sockaddr *>(&this->caddr),
                     sizeof(this->caddr));
-            perror("connect()");
         }
 
         //// Getters

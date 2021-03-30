@@ -7,15 +7,58 @@
 #include <opengrok/client/client.hpp>
 #include <grokbuffer/wrapper.hpp>
 
-int main() {
+#include <unistd.h>
+
+int main(int argc, char **argv) {
     int port;
     std::string host;
 
-    std::cout << "Enter port: ";
-    std::cin >> port;
+    if (argc < 5) {
+        std::cerr << "OpenGrok:Client Help. "
+                     "Required arguments:\n"
+                     "\t-p [port_number]\tLocal port\n"
+                     "\t-h [opengrok host]\tOpenGrok server host"<< std::endl;
 
-    std::cout << "Enter host: ";
-    std::cin >> host;
+        return 0;
+    }
+
+    int opt;
+
+    while ((opt = getopt(argc, argv, "p:h:")) != -1) {
+        switch (opt) {
+            case 'p':
+                port = std::stoi(optarg);
+
+                break;
+
+            case 'h': {
+                host = std::string(optarg);
+
+                break;
+            }
+
+            case '?':
+                return 1;
+
+            default:
+                break;
+        }
+    }
+
+    if (port < 0 || port > 0xffffu) {
+        std::cerr << argv[0] << " Error: Port has an invalid option" << std::endl;
+
+        return 2;
+    }
+
+    sockaddr_in ctest{};
+    opt = inet_aton(host.c_str(), &ctest.sin_addr);
+
+    if (opt == -1) {
+        std::cerr << argv[0] << " Error: Host has an invalid option" << std::endl;
+
+        return 3;
+    }
 
     Cameleo::EventLoop loop;
     auto protocol = new GrokBufferProtocol::Client(host.c_str(), 6567);
