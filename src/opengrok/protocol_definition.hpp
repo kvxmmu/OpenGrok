@@ -24,11 +24,17 @@ using IDPool = ConsistentIDPool<client_id_t>;
 
 #define TOO_LONG_PACKET 1u
 #define NO_SUCH_COMMAND 2u
+#define TOO_SHORT_PACKET 3u
+#define TOO_SHORT_SEND_BUFFER 4u
+#define NO_SUCH_CLIENT 5u
 
 //// Error descriptions
 
 #define TOO_LONG_PACKET_E "Too long packet size"
 #define NO_SUCH_COMMAND_E "No such command"
+#define TOO_SHORT_PACKET_E "Too short packet"
+#define TOO_SHORT_SEND_BUFFER_E "Too short send buffer"
+#define NO_SUCH_CLIENT_E "No such client"
 
 ////
 

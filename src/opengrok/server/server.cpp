@@ -23,9 +23,27 @@ void OpenGrok::MainServer::on_packet(BufferReader &reader, int fd, OpenGrok::Mai
         }
 
         case SEND_PACKET: {
+            if (length < sizeof(client_id_t)) {
+                protocol.respond_error(fd, TOO_SHORT_PACKET, TOO_SHORT_PACKET_E);
+
+                break;
+            }
+
             auto client_id = reader.read<client_id_t>();
             auto actual_length = length - sizeof(client_id_t);
-            auto proxy_server = this->servers.at(fd);
+
+            if (actual_length > length ||
+                actual_length < length) {
+                protocol.respond_error(fd, TOO_SHORT_SEND_BUFFER, TOO_SHORT_SEND_BUFFER_E);
+
+                break;
+            } else if (this->servers.find(fd) == this->servers.end()) {
+                protocol.respond_error(fd, NO_SUCH_CLIENT, NO_SUCH_CLIENT_E);
+
+                break;
+            }
+
+            auto proxy_server = this->servers[fd];
 
             proxy_server->forward(client_id, reader.buffer+reader.offset,
                     actual_length);
@@ -34,6 +52,12 @@ void OpenGrok::MainServer::on_packet(BufferReader &reader, int fd, OpenGrok::Mai
         }
 
         case CLIENT_DISCONNECTED: {
+            if (length < sizeof(client_id_t)) {
+                protocol.respond_error(fd, TOO_SHORT_PACKET, TOO_SHORT_PACKET_E);
+
+                break;
+            }
+
             auto client_id = reader.read<client_id_t>();
             auto proxy_server = this->servers.at(fd);
 
