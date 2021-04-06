@@ -17,6 +17,12 @@ void OpenGrok::Client::on_packet(BufferReader &reader, int fd, OpenGrok::Client:
             break;
         }
 
+        case ERROR: {
+            std::cout << "Error: " << std::string(reader.buffer, length) << std::endl;
+
+            break;
+        }
+
         case CLIENT_CONNECTED: {
             sockaddr_in sockaddr{};
             sockaddr.sin_port = htons(this->port);
@@ -63,7 +69,7 @@ void OpenGrok::Client::on_packet(BufferReader &reader, int fd, OpenGrok::Client:
         }
 
         default: {
-            std::cout << "Unknown command sent" << std::endl;
+            std::cout << "Unknown command sent " << std::endl;
 
             break;
         }

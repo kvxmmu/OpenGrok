@@ -33,7 +33,7 @@ void OpenGrok::MainServer::on_packet(BufferReader &reader, int fd, OpenGrok::Mai
             auto actual_length = length - sizeof(client_id_t);
 
             if (actual_length > length ||
-                actual_length < length) {
+                actual_length == 0u) {
                 protocol.respond_error(fd, TOO_SHORT_SEND_BUFFER, TOO_SHORT_SEND_BUFFER_E);
 
                 break;
