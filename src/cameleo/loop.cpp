@@ -68,7 +68,9 @@ void Cameleo::EventLoop::run() {
 
                 auto need_remove = this->send_queue.perform(fd);
 
-                if (need_remove) {
+                if (need_remove.second) {
+                    this->force_disconnect(fd);
+                } else if (need_remove.first) {
                     this->selector.modify(fd, EPOLLIN);
                 }
             }
@@ -127,9 +129,9 @@ void Cameleo::EventLoop::run() {
 }
 
 void Cameleo::EventLoop::force_disconnect(int fd) {
-    this->selector.remove(fd);
     close(fd);
 
+    this->send_queue.clear_queue(fd);
     this->clear_futures(fd);
 }
 

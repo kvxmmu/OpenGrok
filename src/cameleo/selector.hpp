@@ -12,6 +12,7 @@
 #   include <cstdio>
 #endif
 
+#include <stdexcept>
 #include <fcntl.h>
 
 namespace Cameleo {

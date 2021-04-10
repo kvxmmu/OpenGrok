@@ -48,7 +48,9 @@ namespace Cameleo::Net {
         int result = send(fd, buffer, length, MSG_NOSIGNAL);
 
         if (result <= 0) {
-            perror("write_bytes()");
+            if (errno != EPIPE) {
+                perror("write_bytes()");
+            }
         }
 
         return result;

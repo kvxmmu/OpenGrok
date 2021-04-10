@@ -62,12 +62,13 @@ namespace Cameleo {
             return this->queues.find(fd) != this->queues.end();
         }
 
-        bool perform(int fd) {
+        std::pair<bool, bool> perform(int fd) {
             if (!this->has_queue(fd) || this->queues.at(fd).empty()) {
                 throw std::logic_error("No queue for this fd");
             }
 
             bool need_remove = false;
+            bool error_occur = false;
             auto &queue = this->queues[fd];
             auto &front = queue.front();
 
@@ -76,6 +77,7 @@ namespace Cameleo {
 
             if (bytes_written <= 0) {
                 front.written = front.capacity;
+                error_occur = true;
             } else {
                 front.written += bytes_written;
             }
@@ -88,7 +90,7 @@ namespace Cameleo {
             need_remove = queue.empty();
             this->remove_if_empty(fd);
 
-            return need_remove;
+            return std::make_pair(need_remove, error_occur);
         }
 
         void push(int fd, char *buffer, size_t length) {
@@ -115,6 +117,18 @@ namespace Cameleo {
             if (this->queues[fd].empty()) {
                 this->queues.erase(fd);
             }
+        }
+
+        void clear_queue(int fd) {
+            if (!this->has_queue(fd)) {
+                return;
+            }
+
+            for (auto &item : this->queues.at(fd)) {
+                item.deallocate(this->allocator);
+            }
+
+            this->queues.erase(fd);
         }
     };
 
