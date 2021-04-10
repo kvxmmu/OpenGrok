@@ -52,6 +52,12 @@ void Cameleo::EventLoop::run() {
             epoll_event &event = this->selector.events[nfd];
             auto fd = event.data.fd;
 
+            if (fd == 0) {
+                perror("error(fd zero)");
+
+                continue;
+            }
+
             if (event.events & EPOLLOUT) {
                 if (this->observers.find(fd) != this->observers.end()) {
                     auto observer = this->observers[fd];
@@ -69,7 +75,17 @@ void Cameleo::EventLoop::run() {
                 auto need_remove = this->send_queue.perform(fd);
 
                 if (need_remove.second) {
-                    this->force_disconnect(fd);
+                    for (auto obs_pair : this->observers) {
+                        auto observer = obs_pair.second;
+
+                        if (observer->__has_client(fd)) {
+                            observer->on_disconnect(fd);
+                            this->force_disconnect(fd);
+                            observer->__clients.erase(fd);
+
+                            break;
+                        }
+                    } // ofc tomorrow i'll fix it, just copy-pasta for now
                 } else if (need_remove.first) {
                     this->selector.modify(fd, EPOLLIN);
                 }
@@ -129,6 +145,7 @@ void Cameleo::EventLoop::run() {
 }
 
 void Cameleo::EventLoop::force_disconnect(int fd) {
+    this->selector.remove(fd);
     close(fd);
 
     this->send_queue.clear_queue(fd);

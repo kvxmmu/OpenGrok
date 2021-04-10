@@ -39,6 +39,10 @@ void OpenGrok::ProxyServer::on_disconnect(int fd) {
 void OpenGrok::ProxyServer::forward(client_id_t client_id, char *buffer, size_t length) {
     auto fd = interface->get_fd_by_id(client_id);
 
+    if (!this->__has_client(fd)) {
+        return;
+    }
+
     loop->send(fd, buffer, length);
 }
 

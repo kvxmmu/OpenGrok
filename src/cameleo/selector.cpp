@@ -48,7 +48,7 @@ void Cameleo::EpollSelector::modify(int fd, uint32_t levents,
 
 #ifndef CAMELEO_DONT_HANDLE_EPOLL_ERRORS
     if (epoll_ctl(this->epfd, EPOLL_CTL_MOD, fd, &ev) != 0) {
-        perror("Cameleo::EpollSelector::modify()");
+        throw std::runtime_error("Cameleo::EpollSelector::modify()");
     }
 #else
     epoll_ctl(this->epfd, EPOLL_CTL_MOD, fd, &ev);
