@@ -22,6 +22,20 @@ void Cameleo::EventLoop::add_observer(Cameleo::IObserver *observer) {
     this->observers[sockfd] = observer;
 }
 
+void Cameleo::EventLoop::disconnect_all_clients(int fd) {
+    for (auto obs_pair : this->observers) {
+        auto observer = obs_pair.second;
+
+        if (observer->__has_client(fd)) {
+            observer->on_disconnect(fd);
+            this->force_disconnect(fd);
+            observer->__clients.erase(fd);
+
+            break;
+        }
+    }
+}
+
 void Cameleo::EventLoop::run() {
     /*
      * \name run()
@@ -75,17 +89,7 @@ void Cameleo::EventLoop::run() {
                 auto need_remove = this->send_queue.perform(fd);
 
                 if (need_remove.second) {
-                    for (auto obs_pair : this->observers) {
-                        auto observer = obs_pair.second;
-
-                        if (observer->__has_client(fd)) {
-                            observer->on_disconnect(fd);
-                            this->force_disconnect(fd);
-                            observer->__clients.erase(fd);
-
-                            break;
-                        }
-                    } // ofc tomorrow i'll fix it, just copy-pasta for now
+                    this->disconnect_all_clients(fd);
                 } else if (need_remove.first) {
                     this->selector.modify(fd, EPOLLIN);
                 }
@@ -117,17 +121,7 @@ void Cameleo::EventLoop::run() {
                 }
 
                 if (Net::is_disconnected(fd)) {
-                    for (auto obs_pair : this->observers) {
-                        auto observer = obs_pair.second;
-
-                        if (observer->__has_client(fd)) {
-                            observer->on_disconnect(fd);
-                            this->force_disconnect(fd);
-                            observer->__clients.erase(fd);
-
-                            break;
-                        }
-                    }
+                    this->disconnect_all_clients(fd);
 
                     continue;
                 }

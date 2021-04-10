@@ -225,6 +225,7 @@ namespace Cameleo {
         void add_observer(IObserver *observer);
         void remove_observer(IObserver *observer);
 
+        void disconnect_all_clients(int fd);
         void force_disconnect(int fd);
 
         void run();
