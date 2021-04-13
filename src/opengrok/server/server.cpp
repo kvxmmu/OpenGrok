@@ -14,6 +14,8 @@ void OpenGrok::MainServer::on_packet(BufferReader &reader, int fd, OpenGrok::Mai
             auto proxy_server = new OpenGrok::ProxyServer(listen_port, this,
                     fd);
 
+            std::cout << "[OpenGrok::MainServer] binding port to FD#" << fd << std::endl;
+
             loop.add_observer(proxy_server);
             this->servers[fd] = proxy_server;
 
@@ -41,6 +43,10 @@ void OpenGrok::MainServer::on_packet(BufferReader &reader, int fd, OpenGrok::Mai
                 protocol.respond_error(fd, NO_SUCH_CLIENT, NO_SUCH_CLIENT_E);
 
                 break;
+            } else if (!this->has_client(client_id)) {
+                protocol.respond_error(fd, NO_SUCH_CLIENT, NO_SUCH_CLIENT_E);
+
+                break;
             }
 
             auto proxy_server = this->servers[fd];
@@ -59,7 +65,21 @@ void OpenGrok::MainServer::on_packet(BufferReader &reader, int fd, OpenGrok::Mai
             }
 
             auto client_id = reader.read<client_id_t>();
-            auto proxy_server = this->servers.at(fd);
+            IProxyServer *proxy_server;
+
+            if (!this->has_client(client_id)) {
+                protocol.respond_error(fd, NO_SUCH_CLIENT, NO_SUCH_CLIENT_E);
+
+                return;
+            }
+
+            try {
+                proxy_server = this->servers.at(fd);
+            } catch (std::out_of_range &e) {
+                protocol.respond_error(fd, UNINITIALIZED, UNINITIALIZED_E);
+
+                return;
+            }
 
             proxy_server->disconnect(client_id);
 

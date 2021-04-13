@@ -27,6 +27,7 @@ using IDPool = ConsistentIDPool<client_id_t>;
 #define TOO_SHORT_PACKET 3u
 #define TOO_SHORT_SEND_BUFFER 4u
 #define NO_SUCH_CLIENT 5u
+#define UNINITIALIZED 6u
 
 //// Error descriptions
 
@@ -35,6 +36,7 @@ using IDPool = ConsistentIDPool<client_id_t>;
 #define TOO_SHORT_PACKET_E "Too short packet"
 #define TOO_SHORT_SEND_BUFFER_E "Too short send buffer"
 #define NO_SUCH_CLIENT_E "No such client"
+#define UNINITIALIZED_E "Uninitialized session"
 
 ////
 

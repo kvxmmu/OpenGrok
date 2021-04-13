@@ -42,6 +42,10 @@ public:
         return id;
     }
 
+    bool has_client(client_id_t client_id) {
+        return this->id_to_fd.find(client_id) != this->id_to_fd.end();
+    }
+
     void unlink_by_id(client_id_t client_id) {
         auto client_fd = this->id_to_fd.at(client_id);
 
