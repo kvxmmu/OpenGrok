@@ -1,30 +1,38 @@
-cmake_minimum_required(VERSION 3.13.4)
-project(opengrok)
+cmake_minimum_required(VERSION 3.13)
+project(opengrok C)
 
-include(FindPkgConfig)
-find_package(PkgConfig REQUIRED)
+set(CMAKE_C_STANDARD 11)
+set(OPENGROK_LIB_SRC src/lib/map.h src/lib/map.c
+        src/lib/id_pool.h src/lib/queue.h
+        src/lib/vector.h)
+set(OPENGROK_WINDEPS wsock32 ws2_32)
 
-set(CMAKE_CXX_STANDARD 11)
+if (WIN32)
+    message("Using wepoll as epoll in event loop")
 
-pkg_check_modules(LIBCONFIGPP REQUIRED IMPORTED_TARGET libconfig++)
+    add_library(opengrok_lib ${OPENGROK_LIB_SRC}
+            src/lib/wepoll.c src/lib/wepoll.h)
+    target_link_libraries(opengrok_lib ${OPENGROK_WINDEPS})
+ELSE()
+    message("Using linux epoll in event loop")
 
-add_library(cameleo_lib src/cameleo/selector.cpp src/cameleo/selector.hpp
-        src/cameleo/loop.cpp src/cameleo/loop.hpp)
+    add_library(opengrok_lib ${OPENGROK_LIB_SRC})
+ENDIF()
 
-add_library(grokbuffer src/grokbuffer/wrapper.cpp
-        src/grokbuffer/wrapper.hpp)
+add_library(opengrok_event_loop src/event_loop/event_loop.c
+        src/event_loop/event_loop.h)
 
-include_directories(src/)
+target_link_libraries(opengrok_event_loop opengrok_lib)
 
-add_executable(server main.cpp src/opengrok/server/server.cpp
-        src/opengrok/server/server.hpp src/opengrok/server/proxy_server.cpp
-        src/opengrok/server/proxy_server.hpp)
-add_executable(client client.cpp src/opengrok/client/client.cpp
-        src/opengrok/client/client.hpp src/opengrok/client/proxy_client.cpp
-        src/opengrok/client/proxy_client.hpp)
+add_executable(opengrok main.c src/server/server.c src/server/server.h)
 
-target_link_libraries(grokbuffer cameleo_lib PkgConfig::LIBCONFIGPP)
-target_link_libraries(server grokbuffer)
-target_link_libraries(client grokbuffer)
+if (WIN32)
+    message("Target OS: Windows")
 
+    target_link_libraries(opengrok opengrok_event_loop ${OPENGROK_WINDEPS})
+ELSE()
+    target_link_libraries(opengrok opengrok_event_loop)
+ENDIF()
 
+include_directories(opengrok src)
+add_definitions(-g)
