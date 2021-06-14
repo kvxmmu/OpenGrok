@@ -1,26 +1,29 @@
-# OpenGrok \[WIP\]
+# FreeGrok \[WIP\]
 
 **OpenSource** dedicated ngrok analog.
-**OpenGrok** is designed to be faster than any other project like it.
+**FreeGrok** is designed to be faster than any other project like it.
 
 # TODO
 
 - Timeout handling
    
-   For example, when a client sends an incomplete packet, OpenGrok will 
+   For example, when a client sends an incomplete packet, FreeGrok will 
    wait for it forever, ofc if packet is special crafted to fill your RAM with trash,
-   use OpenGrok only when you sure that this will not happen.
+   use FreeGrok only when you sure that this will not happen.
    
    maybe tomorrow i'll fix it
 - Whitelists/blacklists
 - Database based blacklists/whitelists
-- Implement functionality (Done, OpenGrok is working)
+- Implement functionality (Done, FreeGrok is working)
+- ZStandard packets compression
+- Streamer bufferization
+- back to config file
 
 # Dependencies
 
 - Compiler that supports C++11
 - CMake
-- epoll
+- Epoll or IOCP
 - Berkley sockets
 - libconfig++
 
@@ -31,20 +34,20 @@
     [here](https://t.me/kvxmmu), my native language is **Russian**, but you can contact with 
     me using **English**
     
-- Why should i use **OpenGrok** instead of for example **hamachi** or **Radmin**?
+- Why should i use **FreeGrok** instead of for example **hamachi** or **Radmin**?
 
-    There is no particular reason to use **OpenGrok** instead of any other program that can
+    There is no particular reason to use **FreeGrok** instead of any other program that can
     open your port through NAT, but if you have virtual or dedicated server
-    with a __dedicated IPv4__ you can use the **OpenGrok** because it is faster or 
+    with a __dedicated IPv4__ you can use the **FreeGrok** because it is faster or 
     you have lower ping to the server
 
 
 # Config format
 
-**OpenGrok** uses libconfig++ to parse configs
+**FreeGrok** uses libconfig++ to parse configs
 [here](https://hyperrealm.github.io/libconfig/libconfig_manual.html#Configuration-Files) you can find the format documentation
 
-By default OpenGrok takes the config file from the /etc directory, but you can change it by editing 
+By default FreeGrok takes the config file from the /etc directory, but you can change it by editing 
 constant **CONFIG_FILE_LOCATION** in src/definitions.hpp
 
 #### Fields
@@ -56,5 +59,5 @@ constant **CONFIG_FILE_LOCATION** in src/definitions.hpp
 
 #### Example config
 
-Example config is placed in config/opengrok.cfg
+Example config is placed in config/freegrok.cfg
 

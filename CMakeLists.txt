@@ -1,38 +1,27 @@
-cmake_minimum_required(VERSION 3.13)
-project(opengrok C)
+cmake_minimum_required(VERSION 3.20)
+project(grokpp)
 
-set(CMAKE_C_STANDARD 11)
-set(OPENGROK_LIB_SRC src/lib/map.h src/lib/map.c
-        src/lib/id_pool.h src/lib/queue.h
-        src/lib/vector.h)
-set(OPENGROK_WINDEPS wsock32 ws2_32)
+set(CMAKE_CXX_STANDARD 17)
 
-if (WIN32)
-    message("Using wepoll as epoll in event loop")
+if(WIN32)
+    message("using wepoll as epoll")
+    set(EPOLL_SRC src/loop/wepoll.c src/loop/wepoll.h)
+else()
+    set(EPOLL_SRC "")
+endif()
 
-    add_library(opengrok_lib ${OPENGROK_LIB_SRC}
-            src/lib/wepoll.c src/lib/wepoll.h)
-    target_link_libraries(opengrok_lib ${OPENGROK_WINDEPS})
-ELSE()
-    message("Using linux epoll in event loop")
+add_library(event_loop src/loop/selector.cpp src/loop/selector.hpp
+        src/loop/loop.cpp src/loop/loop.hpp ${EPOLL_SRC})
+add_library(server src/grokserver/server.cpp src/grokserver/server.hpp
+        src/grokserver/proxy_server.cpp src/grokserver/proxy_server.hpp)
+add_library(client src/grokclient/client.cpp src/grokclient/client.hpp
+        src/grokclient/proxy_client.cpp src/grokclient/proxy_client.hpp)
 
-    add_library(opengrok_lib ${OPENGROK_LIB_SRC})
-ENDIF()
+include_directories(src/)
 
-add_library(opengrok_event_loop src/event_loop/event_loop.c
-        src/event_loop/event_loop.h)
+add_executable(grokpp main.cpp)
+add_executable(grokclient client.cpp)
 
-target_link_libraries(opengrok_event_loop opengrok_lib)
-
-add_executable(opengrok main.c src/server/server.c src/server/server.h)
-
-if (WIN32)
-    message("Target OS: Windows")
-
-    target_link_libraries(opengrok opengrok_event_loop ${OPENGROK_WINDEPS})
-ELSE()
-    target_link_libraries(opengrok opengrok_event_loop)
-ENDIF()
-
-include_directories(opengrok src)
-add_definitions(-g)
+target_link_libraries(server event_loop)
+target_link_libraries(grokpp event_loop server)
+target_link_libraries(grokclient event_loop client)
