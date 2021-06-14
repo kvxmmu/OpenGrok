@@ -12,7 +12,7 @@ void GrokClient::process_message(uint8_t type, uint32_t length,
     switch (type) {
         case GROK_PING: {
             std::cout << "[FreeGrok] Ping: " << std::string(reader.buffer, length) << std::endl;
-            streamer.send_header(GROK_CREATE_SERVER, 0);
+            streamer.send(GROK_CREATE_SERVER, nullptr, 0);
 
             break;
         }
@@ -85,7 +85,7 @@ sock_t GrokClient::on_connect() {
 void GrokClient::post_connect(sock_t sock) {
     FStreamer streamer(loop, socket,
                        nullptr);
-    streamer.send_header(GROK_PING, 0);
+    streamer.send(GROK_PING, nullptr, 0);
     this->go_to_message();
 }
 
@@ -155,10 +155,37 @@ void GrokClient::on_received(state_t _state, ReadItem &item) {
             auto type = GROK_GET_TYPE(data);
             auto length = static_cast<uint32_t>(merged & 0xffffffffu);
 
-            FStreamer streamer(loop, item.fd,
-                               item.buffer);
+            char *used_buffer = item.buffer;
+            bool need_free = false;
 
+            if (GROK_IS_COMPRESSED(data)) {
+                auto buff_size = ZSTD_getFrameContentSize(used_buffer, length);
+
+                if (buff_size == ZSTD_CONTENTSIZE_UNKNOWN ||
+                    buff_size == ZSTD_CONTENTSIZE_ERROR || buff_size == 0) {
+                    throw DecompressionError(ZSTD_getErrorName(buff_size));
+                }
+
+                char *dec_buf = new char[buff_size];
+                auto result = ZSTD_decompress(dec_buf,
+                                              buff_size, used_buffer, length);
+
+                if (ZSTD_isError(result)) {
+                    throw DecompressionError(ZSTD_getErrorName(result));
+                }
+
+                length = static_cast<uint32_t>(result);
+                used_buffer = dec_buf;
+                need_free = true;
+            }
+
+            FStreamer streamer(loop, item.fd,
+                               used_buffer);
             this->process_message(type, length, streamer);
+
+            if (need_free) {
+                delete[] used_buffer;
+            }
 
             break;
         }
@@ -174,14 +201,20 @@ void GrokClient::on_disconnect(sock_t sock) {
 /// IClient
 
 void GrokClient::redirect_packet(c_id_t client_id, char *buffer, size_t length) {
+    char *buf = new char[sizeof(c_id_t)+length];
+    int_to_bytes(client_id, buf);
+    memcpy(buf+sizeof(c_id_t), buffer, length);
+
     FStreamer streamer(loop, socket, nullptr);
-    streamer.send_header(GROK_PACKET, sizeof(c_id_t)+length);
-    streamer.send(client_id);
-    streamer.send(buffer, length);
+    streamer.send(GROK_PACKET, buf, sizeof(c_id_t)+length);
+
+    delete[] buf;
 }
 
 void GrokClient::send_disconnected(c_id_t client_id) {
+    char buf[sizeof(c_id_t)];
+    int_to_bytes(client_id, buf);
+
     FStreamer streamer(loop, socket, nullptr);
-    streamer.send_header(GROK_DISCONNECT, sizeof(c_id_t));
-    streamer.send(client_id);
+    streamer.send(GROK_DISCONNECT, buf, sizeof(c_id_t));
 }

@@ -168,17 +168,8 @@ public:
 
     }
 
-    void send(char *buffer, size_t length) const {
+    virtual void send(char *buffer, size_t length) const {
         loop->send(target, buffer, length);
-    }
-
-    template <typename T>
-    void send(const T &integral) const {
-        char int_buf[sizeof(T)];
-        int_to_bytes(integral, int_buf,
-                     endianess);
-
-        this->send(int_buf, sizeof(T));
     }
 };
 

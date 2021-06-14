@@ -9,8 +9,18 @@
 #include <freegrok/proto_spec.h>
 #include <freegrok/streamer.hpp>
 #include <iostream>
+#include <stdexcept>
 
 #include "proxy_client.hpp"
+
+
+class DecompressionError : public std::runtime_error {
+public:
+    explicit
+    DecompressionError(const char *desc) : std::runtime_error(desc) {
+
+    }
+};
 
 
 class GrokClient : public IObserver, public IClient {

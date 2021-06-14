@@ -12,8 +12,7 @@ void FreeGrok::process_message(uint8_t type, uint32_t length, FStreamer &streame
 
     switch (type) {
         case GROK_PING: {
-            streamer.send_header(GROK_PING, cfg.server_name.size());
-            streamer.send(cfg.server_name.data(), cfg.server_name.size());
+            streamer.send(GROK_PING, cfg.server_name.data(), cfg.server_name.size());
 
             break;
         }
@@ -37,8 +36,10 @@ void FreeGrok::process_message(uint8_t type, uint32_t length, FStreamer &streame
                 break;
             }
 
-            streamer.send_header(GROK_CREATE_SERVER, sizeof(proxy_server->listening_port));
-            streamer.send(proxy_server->listening_port);
+            char ls_port_buf[sizeof(uint16_t)];
+            int_to_bytes<uint16_t>(proxy_server->listening_port, ls_port_buf);
+
+            streamer.send(GROK_CREATE_SERVER, ls_port_buf, sizeof(uint16_t));
 
             break;
         }
@@ -200,15 +201,56 @@ void FreeGrok::on_received(state_t _state, ReadItem &item) {
             auto type = GROK_GET_TYPE(data);
             auto length = static_cast<uint32_t>(merged & 0xffffffffu);
 
+            char *used_buffer = item.buffer;
+            bool need_free = false;
+
             if (GROK_IS_COMPRESSED(data)) {
-                /// Not implemented, TODO: implement
+                auto buff_size = ZSTD_getFrameContentSize(used_buffer, length);
+
+                if (buff_size == ZSTD_CONTENTSIZE_UNKNOWN ||
+                    buff_size == ZSTD_CONTENTSIZE_ERROR || buff_size == 0) {
+                    FStreamer streamer(loop, item.fd,
+                                       nullptr);
+                    streamer.send_error(DECOMPRESSION_ERROR);
+                    this->go_new_message(item.fd);
+
+                    break;
+                } else if (buff_size > MAX_DECOMPRESSED_SIZE) {
+                    FStreamer streamer(loop, item.fd, nullptr);
+                    streamer.send_error(TOO_LONG_BUFFER); // too long decompression buffer
+                    this->go_new_message(item.fd);
+
+                    break;
+                }
+
+                char *dec_buf = new char[buff_size];
+                auto response = ZSTD_decompress(dec_buf, buff_size,
+                                                used_buffer, length);
+
+                if (ZSTD_isError(response)) {
+                    delete[] dec_buf;
+
+                    FStreamer streamer(loop, item.fd, nullptr);
+                    streamer.send_error(DECOMPRESSION_ERROR);
+                    this->go_new_message(item.fd);
+
+                    break;
+                }
+
+                used_buffer = dec_buf;
+                length = static_cast<uint32_t>(buff_size);
+                need_free = true;
             }
 
             FStreamer streamer(loop, item.fd,
-                               item.buffer);
+                               used_buffer);
 
             this->process_message(type, length, streamer);
             this->go_new_message(item.fd);
+
+            if (need_free) {
+                delete[] used_buffer;
+            }
 
             break;
         }
@@ -240,21 +282,29 @@ void FreeGrok::go_new_message(sock_t src) {
 //// IMainServer
 
 void FreeGrok::send_connected(sock_t initiator, c_id_t generated_id) {
+    char id_buf[sizeof(c_id_t)];
+    int_to_bytes(generated_id, id_buf);
+
     FStreamer streamer(loop, initiator, nullptr);
-    streamer.send_header(GROK_CONNECTED, sizeof(c_id_t));
-    streamer.send(generated_id);
+    streamer.send(GROK_CONNECTED, id_buf, sizeof(c_id_t));
 }
 
 void FreeGrok::redirect_packet(sock_t initiator, c_id_t sender, char *buffer, size_t length) {
+    char *buf = new char[sizeof(c_id_t)+length];
+    int_to_bytes(sender, buf);
+    memcpy(buf+sizeof(c_id_t), buffer, length);
+
     FStreamer streamer(loop, initiator, nullptr);
-    streamer.send_header(GROK_PACKET, sizeof(c_id_t)+length);
-    streamer.send(sender);
-    streamer.send(buffer, length);
+    streamer.send(GROK_PACKET, buf, sizeof(c_id_t)+length);
+
+    delete[] buf;
 }
 
 void FreeGrok::send_disconnected(sock_t initiator, c_id_t client_id) {
+    char client_buf[sizeof(c_id_t)];
+    int_to_bytes(client_id, client_buf);
+
     FStreamer streamer(loop, initiator, nullptr);
-    streamer.send_header(GROK_DISCONNECT, sizeof(c_id_t));
-    streamer.send(client_id);
+    streamer.send(GROK_DISCONNECT, client_buf, sizeof(c_id_t));
 }
 
