@@ -18,6 +18,7 @@
 - ZStandard packets compression
 - Streamer bufferization
 - back to config file
+- p2p mode
 
 # Dependencies
 
