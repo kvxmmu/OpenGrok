@@ -12,7 +12,7 @@
 #include <zstd.h>
 #include <iostream>
 
-#define COMPRESS_MIN_THRESHOLD 40
+#define COMPRESS_MIN_THRESHOLD 100
 #define ZSTD_COMPRESS_LEVEL 1
 
 class FStreamer : public BufferStreamer {
@@ -51,29 +51,33 @@ public:
             return;
         }
 
-        char *target_buf = new char[length]; // at least N bytes to compress
+        char *target_buf = buffer; // at least N bytes to compress
         size_t target_buf_length;
         bool compressed = false;
 
         if (length >= COMPRESS_MIN_THRESHOLD) {
+            target_buf = new char[length];
+
             target_buf_length = ZSTD_compress(target_buf, length,
                                               buffer, length, ZSTD_COMPRESS_LEVEL);
 
             if (ZSTD_isError(target_buf_length) || (target_buf_length >= length)) {
                 target_buf_length = length;
-                memcpy(target_buf, buffer, length);
+
+                delete[] target_buf;
+                target_buf = buffer;
             } else {
                 length = target_buf_length;
                 compressed = true;
             }
         } else {
             target_buf_length = length;
-            memcpy(target_buf, buffer, length);
         }
 
         this->send_header(type, length, compressed);
         BufferStreamer::send(target_buf, target_buf_length);
-        delete[] target_buf;
+
+        if (compressed) delete[] target_buf;
     }
 
     void send_error(uint8_t type) {

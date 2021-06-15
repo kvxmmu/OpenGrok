@@ -5,6 +5,19 @@
 #include "loop.hpp"
 
 
+#if defined(__GNUC__) || defined(__llvm__) || defined(__INTEL_COMPILER)
+#define GNU_EXTS
+#endif
+
+#ifdef GNU_EXTS
+#define likely(x)     __builtin_expect(!!(x),1)
+#define unlikely(x)   __builtin_expect(!!(x),0)
+#else
+#define likely(x)     (x)
+#define unlikely(x)   (x)
+#endif
+
+
 enum Endianess {
     BIG, LITTLE
 };
@@ -56,8 +69,6 @@ namespace {
         constexpr const auto int_sz = sizeof(IntegerType);
         auto buffer = reinterpret_cast<unsigned char *>(_buffer);
 
-        memset(_buffer, 0, int_sz);
-
         if (endianess == Endianess::LITTLE) {
             for (size_t pos = 0; pos < int_sz; pos++) {
                 buffer[pos] = _integer & 0xffu;
@@ -71,40 +82,31 @@ namespace {
         }
     }
 
-    template<typename IntegerType>
-    IntegerType bytes_to_int(char *_buffer, Endianess endianess = Endianess::LITTLE) {
+    template <typename IntegerType>
+    IntegerType bytes_to_int(char *_buffer, const Endianess endianess = Endianess::LITTLE) {
         auto buffer = reinterpret_cast<unsigned char *>(_buffer);
-        IntegerType integer = 0;
-        size_t size_length = sizeof(IntegerType);
-        size_t pos = 0;
 
-        if (size_length == 1) {
-            return buffer[0];
+        if constexpr (sizeof(IntegerType) == 1) {
+            return static_cast<IntegerType>(buffer[0]);
         }
 
-        if (endianess == Endianess::LITTLE) {
-            integer = buffer[size_length - 1];
-            pos = size_length - 1;
+        IntegerType value = buffer[endianess == Endianess::LITTLE ? sizeof(IntegerType)-1 : 0];
 
-            while (true) {
+        if (endianess == LITTLE) {
+            size_t pos = sizeof(IntegerType)-1;
 
-                integer <<= 8u;
-                integer |= buffer[--pos];
-
-                if (pos == 0) {
-                    break;
-                }
+            while (pos != 0) {
+                value = (value << 8u) | buffer[--pos];
             }
         } else {
-            integer = buffer[pos++];
+            size_t pos = 1;
 
-            while (pos < size_length) {
-                integer <<= 8u;
-                integer |= buffer[pos++];
+            while (pos < sizeof(IntegerType)) {
+                value = (value << 8u) | buffer[pos++];
             }
         }
 
-        return integer;
+        return value;
     }
 }
 
