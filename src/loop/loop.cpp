@@ -23,14 +23,26 @@ void Loop::unlink_client(sock_t sock, IObserver *observer,
     linked_clients.erase(sock);
 }
 
-void Loop::force_disconnect(sock_t client, bool erase) {
-    auto &observer = linked_clients.at(client);
+void Loop::force_disconnect(sock_t client, bool erase,
+                            bool call_on_disconnect) {
+    if (linked_clients.find(client) != linked_clients.end()) {
+        auto &observer = linked_clients.at(client);
 
-    this->remove_queues(client);
-    this->unlink_client(client, observer,
-                        erase);
-    selector.remove(client);
-    tcp_close(client);
+        if (call_on_disconnect) observer->on_disconnect(client);
+
+        this->remove_queues(client);
+        this->unlink_client(client, observer,
+                            erase);
+        selector.remove(client);
+        tcp_close(client);
+
+        return;
+    }
+
+    auto observer = observers.at(client);
+    observer->on_disconnect(client);
+
+    this->remove_observer(observer);
 }
 
 void Loop::perform_read_queue(sock_t sock, IObserver *observer) {
@@ -149,9 +161,13 @@ void Loop::recv(sock_t sock, size_t length, state_t state,
 }
 
 void Loop::send(sock_t sock, char *buffer, size_t length) {
-    auto &write_queue = this->gather_queue(sock).write;
+    auto has_error = selector.modify(sock, EVENTS_R | EVENT_WRITE);
 
-    selector.modify(sock, EVENTS_R | EVENT_WRITE);
+    if (has_error) {
+        return;
+    }
+
+    auto &write_queue = this->gather_queue(sock).write;
     write_queue.emplace_back(buffer, length);
 }
 
@@ -176,12 +192,18 @@ void Loop::run() {
 
         auto n_events = selector.wait();
 
+        if (n_events == -1) {
+            perror("selector.wait()");
+
+            continue;
+        }
+
         for (size_t pos = 0; pos < n_events; pos++) {
             auto &ev = selector.events[pos];
             auto fd = static_cast<sock_t>(ev.data.u64);
             auto events = ev.events;
 
-            if ((events & EPOLLHUP) || (events & EPOLLRDHUP) || (events & EPOLLERR)) {
+            if ((events & EPOLLHUP) || (events & EPOLLRDHUP)) {
                 decltype(observers)::iterator obs_iter;
 
                 if ((obs_iter = observers.find(fd)) != observers.end()) {
@@ -195,28 +217,9 @@ void Loop::run() {
                     break;
                 }
 
-                this->force_disconnect(fd);
+                this->force_disconnect(fd, true, true);
 
                 break;
-            } else if (events & EPOLLOUT) {
-                decltype(observers)::iterator obs_iter;
-
-                if ((obs_iter = observers.find(fd)) != observers.end()) {
-                    // client connection
-                    auto &observer = obs_iter->second;
-
-                    if (!observer->is_connected) {
-                        observer->on_connect();
-                        observer->is_connected = true;
-
-                        selector.modify(fd, EVENTS_R);
-                        observer->post_connect(fd);
-
-                        continue;
-                    }
-                }
-
-                this->perform_write_queue(fd);
             }
 
             if (events & EPOLLIN) {
@@ -254,6 +257,31 @@ void Loop::run() {
                     this->perform_read_queue(fd, linked_observer);
                 }
             }
+
+            if (events & EPOLLOUT) {
+                decltype(observers)::iterator obs_iter;
+
+                if ((obs_iter = observers.find(fd)) != observers.end()) {
+                    // client connection
+                    auto &observer = obs_iter->second;
+
+                    if (!observer->is_connected) {
+                        observer->on_connect();
+                        observer->is_connected = true;
+
+                        selector.modify(fd, EVENTS_R);
+                        observer->post_connect(fd);
+
+                        continue;
+                    }
+                }
+
+                this->perform_write_queue(fd);
+            }
         }
     }
+}
+
+void Loop::handle_selector_error(sock_t fd) {
+    perror("selector error");
 }

@@ -19,19 +19,20 @@ void Selector::ctl(sock_t sock, int op, uint32_t evs) const {
         perror("epoll_ctl()");
 #endif
 #endif
+        handler->handle_selector_error(sock);
     }
 }
 
 void Selector::add(sock_t sock, uint32_t evs) const {
-    this->ctl(sock, EPOLL_CTL_ADD, evs);
+    return this->ctl(sock, EPOLL_CTL_ADD, evs);
 }
 
 void Selector::modify(sock_t sock, uint32_t evs) const {
-    this->ctl(sock, EPOLL_CTL_MOD, evs);
+    return this->ctl(sock, EPOLL_CTL_MOD, evs);
 }
 
 void Selector::remove(sock_t sock) const {
-    this->ctl(sock, EPOLL_CTL_DEL, 0xffffffffu);
+    return this->ctl(sock, EPOLL_CTL_DEL, 0xffffffffu);
 }
 
 int Selector::wait(int timeout) {

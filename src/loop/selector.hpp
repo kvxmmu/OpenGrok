@@ -14,7 +14,12 @@
 
 // #define THROW_ERRORS
 // uncomment for debugging
-#define LOG_ERRORS
+// #define LOG_ERRORS
+
+class IErrorHandler {
+public:
+    virtual void handle_selector_error(sock_t fd) = 0;
+};
 
 class SelectorError : public std::runtime_error {
 public:
@@ -28,8 +33,10 @@ class Selector {
 public:
     epoll_t epfd;
     epoll_event events[MAX_EVENTS]{};
+    IErrorHandler *handler;
 
-    Selector() : epfd(epoll_create(MAX_EVENTS)) {
+    explicit
+    Selector(IErrorHandler *_handler) : epfd(epoll_create(MAX_EVENTS)), handler(_handler) {
 
     }
 

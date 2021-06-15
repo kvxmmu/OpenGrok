@@ -134,9 +134,15 @@ inline auto tcp_recv(sock_t src, char *buffer,
 inline bool tcp_is_connected(sock_t src) {
     char buf[1];
     auto len = tcp_recv(src, buf, 1,
-                        MSG_PEEK);
+                        MSG_PEEK | MSG_DONTWAIT);
 
-    return len > 0;
+    if (len == 0) {
+        return false;
+    } else if (len == -1) {
+        return errno == EAGAIN || errno == EBADF || errno == ENOTCONN;
+    }
+
+    return true;
 }
 
 inline void tcp_close(sock_t src) {

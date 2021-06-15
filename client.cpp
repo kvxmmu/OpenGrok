@@ -9,7 +9,7 @@
 
 
 int main() {
-    uint16_t port;
+    uint16_t port = 25565;
     std::string ip;
 
     std::cout << "Enter port: ";

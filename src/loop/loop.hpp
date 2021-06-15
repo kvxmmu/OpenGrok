@@ -13,7 +13,7 @@
 #include <map>
 #include <deque>
 
-#define EVENTS_R EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR
+#define EVENTS_R EPOLLIN | EPOLLHUP | EPOLLRDHUP
 #define EVENT_WRITE EPOLLOUT
 
 
@@ -86,7 +86,7 @@ public:
 };
 
 
-class Loop {
+class Loop : public IErrorHandler {
 private:
     std::unordered_map<sock_t, Queues> queues;
     std::map<sock_t, IObserver *> observers;
@@ -106,6 +106,10 @@ protected:
     void remove_queues(sock_t sock);
 
 public:
+    Loop() : selector(this) {
+
+    }
+
     Queues &gather_queue(sock_t fd);
 
     void add_observer(IObserver *observer);
@@ -120,10 +124,15 @@ public:
 
     ////
 
-    void force_disconnect(sock_t client, bool erase = true);
+    void force_disconnect(sock_t client, bool erase = true,
+                          bool call_on_disconnect = false);
     void stop();
 
     void run();
+
+    //// IErrorHandler
+
+    void handle_selector_error(sock_t fd) override;
 };
 
 
