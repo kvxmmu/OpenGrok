@@ -32,7 +32,11 @@ public:
 
 
 inline sock_t tcp_create() {
-    return socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    return socket(AF_INET, SOCK_STREAM
+    #ifndef _PLATFORM_WINDOWS
+    | SOCK_NONBLOCK
+    #endif
+                  , 0);
 }
 
 inline void tcp_bind(sock_t src, sockaddr_in &addr) {
@@ -104,7 +108,12 @@ inline void tcp_listen(sock_t src, int backlog = 4096) {
 inline void tcp_set_reuse(sock_t src) {
     static int y = 1;
     auto status = setsockopt(src, SOL_SOCKET, SO_REUSEADDR,
-                             &y, sizeof(int));
+#ifndef _PLATFORM_WINDOWS
+                            &y
+#else
+                             reinterpret_cast<char *>(&y)
+#endif
+                             , sizeof(int));
 
     if (status != 0) {
         throw SysError();
