@@ -26,7 +26,7 @@ public:
                      bool compressed) {
         uint8_t flags = compressed ? GROK_COMPRESSED_PKT : 0;
 
-        if (length <= 0xffu) {
+        if (likely(length <= 0xffu)) {
             unsigned char buf[sizeof(uint8_t)+sizeof(uint8_t)];
             buf[0] = GROK_STORE_FLAGS(flags | GROK_SHORT_PKT, type);
             buf[1] = static_cast<uint8_t>(length);
@@ -55,7 +55,7 @@ public:
         size_t target_buf_length;
         bool compressed = false;
 
-        if (length >= COMPRESS_MIN_THRESHOLD) {
+        if (likely(length >= COMPRESS_MIN_THRESHOLD)) {
             target_buf = new char[length];
 
             target_buf_length = ZSTD_compress(target_buf, length,

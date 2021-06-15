@@ -144,7 +144,7 @@ void FreeGrok::on_received(state_t _state, ReadItem &item) {
             uint8_t length_chunk = item.buffer[1];
             uint8_t type = GROK_GET_TYPE(data);
 
-            if (GROK_IS_SHORT(data)) {
+            if (likely(GROK_IS_SHORT(data))) {
                 if (length_chunk == 0u) {
                     FStreamer streamer(loop, item.fd,
                                        nullptr);
@@ -180,7 +180,7 @@ void FreeGrok::on_received(state_t _state, ReadItem &item) {
 
             auto length = bytes_to_int<uint32_t>(reinterpret_cast<char *>(length_buf));
 
-            if (length == 0) {
+            if (unlikely(length == 0)) {
                 FStreamer streamer(loop, item.fd,
                                    item.buffer+3u);
 
@@ -206,7 +206,7 @@ void FreeGrok::on_received(state_t _state, ReadItem &item) {
             char *used_buffer = item.buffer;
             bool need_free = false;
 
-            if (GROK_IS_COMPRESSED(data)) {
+            if (likely(GROK_IS_COMPRESSED(data))) {
                 auto buff_size = ZSTD_getFrameContentSize(used_buffer, length);
 
                 if (buff_size == ZSTD_CONTENTSIZE_UNKNOWN ||
@@ -266,7 +266,7 @@ void FreeGrok::on_disconnect(sock_t sock) {
 
     std::cout << "[FreeGrok] Disconnected client " << inet_ntoa(addr.sin_addr) << std::endl;
 
-    if (servers.find(sock) != servers.end()) {
+    if (unlikely(servers.find(sock) != servers.end())) {
         auto serv = servers[sock];
         serv->shutdown(); // free ids
 
