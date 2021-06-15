@@ -15,7 +15,9 @@ void Selector::ctl(sock_t sock, int op, uint32_t evs) const {
 #ifdef THROW_ERRORS
         throw SelectorError();
 #else
+#ifdef LOG_ERRORS
         perror("epoll_ctl()");
+#endif
 #endif
     }
 }

@@ -12,7 +12,9 @@
 #include "epoll.h"
 #define MAX_EVENTS 4096
 
-#define THROW_ERRORS
+// #define THROW_ERRORS
+// uncomment for debugging
+#define LOG_ERRORS
 
 class SelectorError : public std::runtime_error {
 public:
