@@ -35,8 +35,8 @@ sock_t GrokProxy::on_connect() {
     sockaddr_in addr{};
     auto client_fd = tcp_accept(socket, addr);
 
-    std::cout << "[FreeGrok:ProxyServer] " << inet_ntoa(addr.sin_addr) << " connected to the "
-              << inet_ntoa(initiator_peer.sin_addr) << " initiator" << std::endl;
+//    std::cout << "[FreeGrok:ProxyServer] " << inet_ntoa(addr.sin_addr) << " connected to the "
+//              << inet_ntoa(initiator_peer.sin_addr) << " initiator" << std::endl;
     loop->capture(client_fd);
     server->send_connected(initiator, this->link_client(client_fd));
 
@@ -44,6 +44,12 @@ sock_t GrokProxy::on_connect() {
 }
 
 void GrokProxy::on_received(state_t state, ReadItem &item) {
+    if (sock_to_id.find(item.fd) == sock_to_id.end()) {
+        std::cout << "[FreeGrok:ProxyServer] Unhandled error: no id" << std::endl;
+
+        return;
+    }
+
     char redir_buf[REDIR_BUF_SIZE];
     auto received = tcp_recv(item.fd, redir_buf, REDIR_BUF_SIZE);
 
@@ -69,12 +75,23 @@ void GrokProxy::shutdown() {
 }
 
 void GrokProxy::redirect_packet(c_id_t client_id, char *buffer, size_t length) {
+    if (id_to_sock.find(client_id) == id_to_sock.end()) {
+        std::cout << "[FreeGrok:ProxyServer] Unhandled error: no socket" << std::endl;
+
+        return;
+    }
+
     auto client_fd = id_to_sock.at(client_id);
 
     loop->send(client_fd, buffer, length);
 }
 
 void GrokProxy::disconnect_client(c_id_t client_id) {
+    if (id_to_sock.find(client_id) == id_to_sock.end()) {
+        std::cout << "[FreeGrok:ProxyServer] Unhandled error: no socket(disconnect request)" << std::endl;
+
+        return;
+    }
     auto client_fd = id_to_sock.at(client_id);
     this->unlink_client(client_id, client_fd);
 

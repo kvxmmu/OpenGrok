@@ -279,5 +279,7 @@ void Loop::run() {
 }
 
 void Loop::handle_selector_error(sock_t fd) {
-    perror("selector error");
+    if (errno != EBADF) {
+        perror("selector error");
+    }
 }

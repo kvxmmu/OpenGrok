@@ -20,6 +20,10 @@ void GrokClient::process_message(uint8_t type, uint32_t length,
         case GROK_ERROR: {
             auto error_type = reader.read<uint8_t>();
 
+            if (error_type == NO_SUCH_CLIENT) {
+                break; // skip this error
+            }
+
             std::cout << "[FreeGrok] Eror type: 0x" << std::hex << static_cast<uint32_t>(error_type) << std::endl;
 
             break;

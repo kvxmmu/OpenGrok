@@ -84,8 +84,6 @@ void FreeGrok::process_message(uint8_t type, uint32_t length, FStreamer &streame
             auto client_id = reader.read<c_id_t>();
             auto server = servers[fd];
 
-            std::cout << "Disconnect client " << client_id << std::endl;
-
             if (!server->has_client(client_id)) {
                 streamer.send_error(NO_SUCH_CLIENT);
 
