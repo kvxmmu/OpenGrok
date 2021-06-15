@@ -161,11 +161,7 @@ void Loop::recv(sock_t sock, size_t length, state_t state,
 }
 
 void Loop::send(sock_t sock, char *buffer, size_t length) {
-    auto has_error = selector.modify(sock, EVENTS_R | EVENT_WRITE);
-
-    if (has_error) {
-        return;
-    }
+    selector.modify(sock, EVENTS_R | EVENT_WRITE);
 
     auto &write_queue = this->gather_queue(sock).write;
     write_queue.emplace_back(buffer, length);
