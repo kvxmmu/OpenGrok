@@ -181,7 +181,7 @@ void Loop::run() {
             auto fd = static_cast<sock_t>(ev.data.u64);
             auto events = ev.events;
 
-            if ((events & EPOLLHUP) || (events & EPOLLRDHUP)) {
+            if ((events & EPOLLHUP) || (events & EPOLLRDHUP) || (events & EPOLLERR)) {
                 decltype(observers)::iterator obs_iter;
 
                 if ((obs_iter = observers.find(fd)) != observers.end()) {

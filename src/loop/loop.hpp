@@ -13,7 +13,7 @@
 #include <map>
 #include <deque>
 
-#define EVENTS_R EPOLLIN | EPOLLHUP | EPOLLRDHUP
+#define EVENTS_R EPOLLIN | EPOLLHUP | EPOLLRDHUP | EPOLLERR
 #define EVENT_WRITE EPOLLOUT
 
 
