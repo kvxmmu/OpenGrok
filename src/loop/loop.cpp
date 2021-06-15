@@ -188,6 +188,10 @@ void Loop::run() {
                     auto &observer = obs_iter->second;
                     observer->on_disconnect(fd);
 
+                    if (!observer->is_server) {
+                        this->remove_observer(observer);
+                    }
+
                     break;
                 }
 
