@@ -161,9 +161,12 @@ void Loop::recv(sock_t sock, size_t length, state_t state,
 }
 
 void Loop::send(sock_t sock, char *buffer, size_t length) {
-    selector.modify(sock, EVENTS_R | EVENT_WRITE);
-
     auto &write_queue = this->gather_queue(sock).write;
+
+    if (write_queue.empty()) {
+        selector.modify(sock, EVENTS_R | EVENT_WRITE);
+    }
+
     write_queue.emplace_back(buffer, length);
 }
 
@@ -231,24 +234,10 @@ void Loop::run() {
 
                         observer->post_connect(client_fd);
                     } else {
-                        if (!tcp_is_connected(fd)) {
-                            observer->on_disconnect(fd);
-                            this->remove_observer(observer);
-
-                            break;
-                        }
-
                         this->perform_read_queue(fd, observer);
                     }
                 } else {
                     auto &linked_observer = linked_clients.at(fd);
-
-                    if (!tcp_is_connected(fd)) {
-                        linked_observer->on_disconnect(fd);
-                        this->force_disconnect(fd);
-
-                        break;
-                    }
 
                     this->perform_read_queue(fd, linked_observer);
                 }

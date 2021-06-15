@@ -89,7 +89,7 @@ public:
 class Loop : public IErrorHandler {
 private:
     std::unordered_map<sock_t, Queues> queues;
-    std::map<sock_t, IObserver *> observers;
+    std::unordered_map<sock_t, IObserver *> observers;
     std::unordered_map<sock_t, IObserver *> linked_clients;
 
     Selector selector;
