@@ -75,8 +75,6 @@ void GrokProxy::redirect_packet(c_id_t client_id, char *buffer, size_t length) {
 }
 
 void GrokProxy::disconnect_client(c_id_t client_id) {
-    std::cout << "Disconnect client request" << std::endl;
-
     auto client_fd = id_to_sock.at(client_id);
     this->unlink_client(client_id, client_fd);
 

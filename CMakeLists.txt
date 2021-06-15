@@ -20,8 +20,7 @@ add_library(client src/grokclient/client.cpp src/grokclient/client.hpp
 include_directories(src/)
 
 add_executable(grokpp main.cpp)
-add_executable(test test.cpp)
-add_executable(grokclient client.cpp test.cpp)
+add_executable(grokclient client.cpp)
 
 target_link_libraries(server event_loop zstd)
 target_link_libraries(grokpp event_loop server)
