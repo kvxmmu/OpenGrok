@@ -28,10 +28,11 @@ protected:
 
 public:
     IMainServer *server;
-    uint16_t listening_port = 0;
+    uint16_t listening_port;
 
     GrokProxy(IMainServer *_server,
-              sock_t _initiator) : server(_server), initiator(_initiator), IObserver(tcp_create(), true) {
+              sock_t _initiator, uint16_t port = PROXY_PORT) : server(_server), initiator(_initiator), IObserver(tcp_create(), true),
+                                                               listening_port(port) {
         tcp_get_peer_name(_initiator, initiator_peer);
     }
 

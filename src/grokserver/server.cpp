@@ -18,20 +18,39 @@ void FreeGrok::process_message(uint8_t type, uint32_t length, FStreamer &streame
         }
 
         case GROK_CREATE_SERVER: {
-            if (servers.find(fd) != servers.end()) {
+            if (this->has_server(fd)) {
                 streamer.send_error(SERVER_ALREADY_CREATED);
 
                 break;
             }
 
-            auto proxy_server = new GrokProxy(this, fd);
-            servers[fd] = proxy_server;
+            uint16_t target_port = 0;
+
+            if (length == sizeof(uint16_t)) {
+                auto &user = this->gather_user(fd);
+
+                if (user.can_select_port) {
+                    auto port = reader.read<uint16_t>();
+
+                    if (!tcp_is_port_available(port)) {
+                        streamer.send_error(UNAVAILABLE_PORT);
+
+                        break;
+                    }
+
+                    target_port = port;
+                }
+            }
+
+            auto proxy_server = new GrokProxy(this, fd,
+                                              target_port);
+            this->link_server(fd, proxy_server);
             loop->add_observer(proxy_server);
 
             if (proxy_server->listening_port == 0) {
                 streamer.send_error(INTERNAL_SERVER_ERROR);
                 loop->remove_observer(proxy_server);
-                servers.erase(fd);
+                this->remove_server(fd);
 
                 break;
             }
@@ -45,7 +64,7 @@ void FreeGrok::process_message(uint8_t type, uint32_t length, FStreamer &streame
         }
 
         case GROK_PACKET: {
-            if (servers.find(fd) == servers.end()) {
+            if (!this->has_server(fd)) {
                 streamer.send_error(NO_SESSION);
 
                 break;
@@ -56,7 +75,7 @@ void FreeGrok::process_message(uint8_t type, uint32_t length, FStreamer &streame
             }
 
             auto client_id = reader.read<c_id_t>();
-            auto server = servers[fd];
+            auto server = this->gather_user(fd).server;
 
             if (!server->has_client(client_id)) {
                 streamer.send_error(NO_SUCH_CLIENT);
@@ -71,7 +90,7 @@ void FreeGrok::process_message(uint8_t type, uint32_t length, FStreamer &streame
         }
 
         case GROK_DISCONNECT: {
-            if (servers.find(fd) == servers.end()) {
+            if (!this->has_server(fd)) {
                 streamer.send_error(NO_SESSION);
 
                 break;
@@ -82,7 +101,7 @@ void FreeGrok::process_message(uint8_t type, uint32_t length, FStreamer &streame
             }
 
             auto client_id = reader.read<c_id_t>();
-            auto server = servers[fd];
+            auto server = this->gather_user(fd).server;
 
             if (!server->has_client(client_id)) {
                 streamer.send_error(NO_SUCH_CLIENT);
@@ -91,6 +110,30 @@ void FreeGrok::process_message(uint8_t type, uint32_t length, FStreamer &streame
             }
 
             server->disconnect_client(client_id);
+
+            break;
+        }
+
+        case GROK_AUTH: {
+            // silent auth
+            if (length != magic_length) {
+                break;
+            }
+
+            sockaddr_in caddr{};
+            tcp_get_peer_name(fd, caddr);
+
+            bool authorized = memcmp(magic_auth_buffer, streamer.reader.buffer,
+                                     magic_length) == 0;
+
+            if (authorized) {
+                auto &user = this->gather_user(fd);
+                user.grant(User::ALL);
+
+                std::cout << "[FreeGrok] Authorized IP " << inet_ntoa(caddr.sin_addr) << " by magic" << std::endl;
+            } else {
+                std::cout << "[FreeGrok] IP " << inet_ntoa(caddr.sin_addr) << " tried to authorize by magic, but failed" << std::endl;
+            }
 
             break;
         }
@@ -264,13 +307,13 @@ void FreeGrok::on_disconnect(sock_t sock) {
 
     std::cout << "[FreeGrok] Disconnected client " << inet_ntoa(addr.sin_addr) << std::endl;
 
-    if (unlikely(servers.find(sock) != servers.end())) {
-        auto serv = servers[sock];
+    if (this->has_server(sock)) {
+        auto serv = gather_user(sock).server;
         serv->shutdown(); // free ids
 
         loop->remove_observer(serv);
         delete serv;
-        servers.erase(sock);
+        this->remove_user(sock);
     }
 }
 
@@ -306,5 +349,47 @@ void FreeGrok::send_disconnected(sock_t initiator, c_id_t client_id) {
 
     FStreamer streamer(loop, initiator, nullptr);
     streamer.send(GROK_DISCONNECT, client_buf, sizeof(c_id_t));
+}
+
+/// Helper functions
+
+bool FreeGrok::has_server(sock_t fd) {
+    if (!this->has_user(fd)) {
+        return false;
+    }
+
+    return users[fd].server != nullptr;
+}
+
+User &FreeGrok::gather_user(sock_t fd) {
+    if (users.find(fd) == users.end()) {
+        users[fd] = User();
+    }
+
+    return users[fd];
+}
+
+bool FreeGrok::has_user(sock_t fd) {
+    return users.find(fd) != users.end();
+}
+
+void FreeGrok::link_server(sock_t fd, GrokProxy *proxy) {
+    auto &user = this->gather_user(fd);
+    user.server = proxy;
+}
+
+void FreeGrok::remove_user(sock_t fd) {
+    users.erase(fd);
+}
+
+GrokProxy *FreeGrok::get_server(sock_t fd) {
+    return this->gather_user(fd).server;
+}
+
+void FreeGrok::remove_server(sock_t fd) {
+    auto user = this->gather_user(fd);
+    delete user.server;
+
+    user.server = nullptr;
 }
 

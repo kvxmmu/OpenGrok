@@ -28,15 +28,24 @@ public:
     SysError() : std::runtime_error(strerror(errno)) {
 
     }
+
+public:
+    const char *text() {
+        return this->what();
+    }
 };
 
 
-inline sock_t tcp_create() {
-    return socket(AF_INET, SOCK_STREAM
-    #ifndef _PLATFORM_WINDOWS
-    | SOCK_NONBLOCK
-    #endif
-                  , 0);
+inline sock_t tcp_create(bool nonblocking = true) {
+    int type = SOCK_STREAM;
+
+#ifndef _PLATFORM_WINDOWS
+    if (nonblocking) {
+        type |= SOCK_NONBLOCK;
+    }
+#endif
+
+    return socket(AF_INET, type, 0);
 }
 
 inline void tcp_bind(sock_t src, sockaddr_in &addr) {
@@ -131,6 +140,39 @@ inline auto tcp_recv(sock_t src, char *buffer,
                 flags);
 }
 
+inline void tcp_close(sock_t src) {
+#ifdef _PLATFORM_WINDOWS
+    closesocket(src);
+#else
+    close(src);
+#endif
+}
+
+#include <iostream>
+
+inline bool tcp_is_port_available(uint16_t port) {
+    auto test_socket = tcp_create(false);
+
+    tcp_set_reuse(test_socket);
+
+    sockaddr_in addr{};
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_family = AF_INET;
+
+    try {
+        tcp_bind(test_socket, addr);
+    } catch (SysError &e) {
+        tcp_close(test_socket);
+
+        return false;
+    }
+
+    tcp_close(test_socket);
+
+    return true;
+}
+
 inline bool tcp_is_connected(sock_t src) {
     char buf[1];
     auto len = tcp_recv(src, buf, 1,
@@ -143,14 +185,6 @@ inline bool tcp_is_connected(sock_t src) {
     }
 
     return true;
-}
-
-inline void tcp_close(sock_t src) {
-#ifdef _PLATFORM_WINDOWS
-    closesocket(src);
-#else
-    close(src);
-#endif
 }
 
 #endif //GROKPP_SOCKETS_H

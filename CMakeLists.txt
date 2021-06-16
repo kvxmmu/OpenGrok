@@ -25,5 +25,3 @@ add_executable(grokclient client.cpp)
 target_link_libraries(server event_loop zstd)
 target_link_libraries(grokpp event_loop server)
 target_link_libraries(grokclient event_loop client zstd)
-
-add_definitions(-O3)

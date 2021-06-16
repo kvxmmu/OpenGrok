@@ -7,6 +7,8 @@
 
 #include <cinttypes>
 
+#define FREEGROK_VER "1.1b"
+
 #define GROK_COMPRESSED_PKT 0b01
 #define GROK_SHORT_PKT 0b10
 
@@ -25,6 +27,7 @@
 #define GROK_DISCONNECT 5
 
 #define GROK_STAT 6
+#define GROK_AUTH 7
 
 //// Errors
 
@@ -36,6 +39,8 @@
 #define BUFFER_SIZE_INCORRECT 5
 #define NO_SUCH_CLIENT 6
 #define DECOMPRESSION_ERROR 7
+#define NOT_ENOUGH_RIGHTS 8
+#define UNAVAILABLE_PORT 9
 
 #define INTERNAL_SERVER_ERROR 255
 #define NOT_IMPLEMENTED 128

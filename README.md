@@ -14,11 +14,11 @@
    maybe tomorrow i'll fix it
 - Whitelists/blacklists
 - Database based blacklists/whitelists
-- Implement functionality (Done, FreeGrok is working)
-- ZStandard packets compression
-- Streamer bufferization
-- back to config file
+- Implement functionality [x]
+- ZStandard packets compression [x]
+- Streamer bufferization [x]
 - p2p mode
+- move client to another repo
 
 # Dependencies
 
@@ -45,11 +45,10 @@
 
 # Config format
 
-**FreeGrok** uses libconfig++ to parse configs
-[here](https://hyperrealm.github.io/libconfig/libconfig_manual.html#Configuration-Files) you can find the format documentation
+**FreeGrok** uses ini format for configs
 
 By default FreeGrok takes the config file from the /etc directory, but you can change it by editing 
-constant **CONFIG_FILE_LOCATION** in src/definitions.hpp
+constant **CONFIG_FILE_LOCATION** in src/freegrok/defaults.hpp
 
 #### Fields
 **listen_port** - port that server will listen(**16bit unsigned integer**), **6567** - by default

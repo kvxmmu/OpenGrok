@@ -1,0 +1,4 @@
+[freegrok]
+port=6567
+magic=simple magic
+server_name=FreeGrok/1.1b

@@ -23,7 +23,7 @@ void GrokProxy::unlink_client(c_id_t id, sock_t sock, bool erase) {
 
 void GrokProxy::post_init() {
     tcp_set_reuse(socket);
-    tcp_bind(socket, INADDR_ANY, PROXY_PORT);
+    tcp_bind(socket, INADDR_ANY, listening_port);
     tcp_listen(socket);
 
     listening_port = tcp_get_listening_port(socket);
@@ -35,8 +35,8 @@ sock_t GrokProxy::on_connect() {
     sockaddr_in addr{};
     auto client_fd = tcp_accept(socket, addr);
 
-//    std::cout << "[FreeGrok:ProxyServer] " << inet_ntoa(addr.sin_addr) << " connected to the "
-//              << inet_ntoa(initiator_peer.sin_addr) << " initiator" << std::endl;
+    std::cout << "[FreeGrok:ProxyServer] " << inet_ntoa(addr.sin_addr) << " connected to the "
+              << inet_ntoa(initiator_peer.sin_addr) << " initiator" << std::endl;
     loop->capture(client_fd);
     server->send_connected(initiator, this->link_client(client_fd));
 

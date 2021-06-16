@@ -12,7 +12,19 @@ void GrokClient::process_message(uint8_t type, uint32_t length,
     switch (type) {
         case GROK_PING: {
             std::cout << "[FreeGrok] Ping: " << std::string(reader.buffer, length) << std::endl;
-            streamer.send(GROK_CREATE_SERVER, nullptr, 0);
+
+            if (!magic.empty()) {
+                char port_buf[sizeof(uint16_t)];
+                int_to_bytes(requested_port, port_buf);
+
+                streamer.send(GROK_AUTH, magic.data(),
+                              magic.size());
+
+                streamer.send(GROK_CREATE_SERVER, port_buf, sizeof(uint16_t));
+            } else {
+                streamer.send(GROK_CREATE_SERVER, nullptr, 0);
+            }
+
 
             break;
         }
@@ -200,6 +212,13 @@ void GrokClient::on_received(state_t _state, ReadItem &item) {
 
 void GrokClient::on_disconnect(sock_t sock) {
     std::cout << "[FreeGrok] Disconnected" << std::endl;
+
+    for (auto &proxy_pair : proxies) {
+        auto observer = proxy_pair.second;
+        loop->remove_observer(observer);
+
+        delete observer;
+    }
 }
 
 /// IClient
