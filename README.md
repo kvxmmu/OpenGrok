@@ -50,14 +50,7 @@
 By default FreeGrok takes the config file from the /etc directory, but you can change it by editing 
 constant **CONFIG_FILE_LOCATION** in src/freegrok/defaults.hpp
 
-#### Fields
-**listen_port** - port that server will listen(**16bit unsigned integer**), **6567** - by default
-
-**server_name** - server signature(client can ask about server signature, you can write anything in this field)
-
-**listen_addr** - bind address, **0.0.0.0** - by default
-
 #### Example config
 
-Example config is placed in config/freegrok.cfg
+[here](freegrok.ini.example)
 
