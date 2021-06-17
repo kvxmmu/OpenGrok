@@ -26,7 +26,7 @@ sock_t GrokProxyClient::on_connect() {
 
 void GrokProxyClient::on_disconnect(sock_t sock) {
     std::cout << "[FreeGrok:ProxyClient] Local client is disconnected" << std::endl;
-    if (!shut) client->send_disconnected(self_id);
+    client->send_disconnected(self_id);
 }
 
 void GrokProxyClient::redirect(char *buffer, size_t length) {

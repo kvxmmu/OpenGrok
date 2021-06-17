@@ -240,4 +240,7 @@ void GrokClient::send_disconnected(c_id_t client_id) {
 
     FStreamer streamer(loop, socket, nullptr);
     streamer.send(GROK_DISCONNECT, buf, sizeof(c_id_t));
+
+    delete proxies[client_id];
+    proxies.erase(client_id);
 }

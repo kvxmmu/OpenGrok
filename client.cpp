@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
         TCLAP::ValueArg<std::string> redirect_host("r", "redirect-host", "Redirect host",
                                                    false, "127.0.0.1", "host");
         TCLAP::ValueArg<int> listen_port("l", "listen-port", "Port to open on server side",
-                                         false, 1, "port");
+                                         false, 0, "port");
 
         cmd.add(host_arg);
         cmd.add(port_arg);
@@ -37,9 +37,11 @@ int main(int argc, char *argv[]) {
 
         cmd.parse(argc, argv);
         auto gport = grok_port.getValue();
+        auto local_port =  port_arg.getValue();
         auto listen_value = listen_port.getValue();
 
-        if (!is_valid_port(gport) || !is_valid_port(listen_value)) {
+        if (!is_valid_port(gport) || !is_valid_port(listen_value)
+        || !is_valid_port(local_port)) {
             std::cerr << "[FreeGrok] Invalid port" << std::endl;
 
             return 3;
@@ -50,16 +52,17 @@ int main(int argc, char *argv[]) {
         auto port = static_cast<uint16_t>(gport);
         auto listen_port_val = static_cast<uint16_t>(listen_value);
         uint32_t addr = inet_addr(host_arg.getValue().c_str());
+        uint32_t redir_host = inet_addr(redirect_host.getValue().c_str());
 
-        if (addr == static_cast<uint32_t>(-1)) {
-            std::cerr << "[FreeGrok] Unexpected address " << host_arg.getValue() << std::endl;
+        if (addr == static_cast<uint32_t>(-1) || redir_host == static_cast<uint32_t>(-1)) {
+            std::cerr << "[FreeGrok] Unexpected host address" << std::endl;
 
             return 1;
         }
 
         Loop loop;
         GrokClient client(addr,
-                          6567, inet_addr("127.0.0.1"), port,
+                          port, redir_host, local_port,
                           magic_arg.getValue(),
                           listen_port_val);
 
