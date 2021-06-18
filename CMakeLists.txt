@@ -4,13 +4,10 @@ project(grokpp)
 set(CMAKE_CXX_STANDARD 17)
 
 if(MSVC OR MSYS OR MINGW OR WIN32)
-    message("using wepoll as epoll")
+    message("-- using wepoll as epoll")
     set(EPOLL_SRC ${CMAKE_SOURCE_DIR}/src/loop/wepoll.c ${CMAKE_SOURCE_DIR}/src/loop/wepoll.h)
-
-    set(SOCKETS_LIBRARIES "wsock32 ws2_32")
 else()
     set(EPOLL_SRC "")
-    set(SOCKETS_LIBRARIES "")
 endif()
 
 if (MSVC OR MSYS OR MINGW OR WIN32)
@@ -28,7 +25,12 @@ include_directories(src/)
 
 add_executable(grokpp main.cpp)
 
-target_link_libraries(server event_loop ${ZSTD_LINK} wsock32 ws2_32)
+if (MSVC OR MSYS OR MINGW OR WIN32)
+    target_link_libraries(server event_loop ${ZSTD_LINK} wsock32 ws2_32)
+else()
+    target_link_libraries(server event_loop ${ZSTD_LINK})
+endif()
+
 target_link_libraries(grokpp event_loop server)
 
 if (MSVC OR MSYS OR MINGW OR WIN32)
