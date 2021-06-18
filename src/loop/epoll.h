@@ -11,6 +11,7 @@
 #ifdef _PLATFORM_WINDOWS
 #include "wepoll.h"
 
+typedef HANDLE epoll_t;
 #else
 #include <sys/epoll.h>
 #include <unistd.h>

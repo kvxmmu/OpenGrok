@@ -62,6 +62,8 @@ void GrokProxy::on_disconnect(sock_t sock) {
     this->unlink_client(id, sock);
 
     server->send_disconnected(initiator, id);
+
+    std::cout << "[FreeGrok:ProxyServer] Client " << id << " disconnected" << std::endl;
 }
 
 void GrokProxy::shutdown() {
@@ -96,6 +98,8 @@ void GrokProxy::disconnect_client(c_id_t client_id) {
     this->unlink_client(client_id, client_fd);
 
     loop->force_disconnect(client_fd);
+
+    std::cout << "[FreeGrok:ProxyServer] Disconnecting client " << client_id << std::endl;
 }
 
 bool GrokProxy::has_client(c_id_t id) {

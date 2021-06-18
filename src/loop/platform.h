@@ -7,6 +7,8 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 # define _PLATFORM_WINDOWS
+
+#include <winsock2.h>
 #endif
 
 #ifdef _PLATFORM_WINDOWS

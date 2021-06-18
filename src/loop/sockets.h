@@ -176,7 +176,7 @@ inline bool tcp_is_port_available(uint16_t port) {
 inline bool tcp_is_connected(sock_t src) {
     char buf[1];
     auto len = tcp_recv(src, buf, 1,
-                        MSG_PEEK | MSG_DONTWAIT);
+                        MSG_PEEK);
 
     if (len == 0) {
         return false;

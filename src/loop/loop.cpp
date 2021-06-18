@@ -26,7 +26,7 @@ void Loop::unlink_client(sock_t sock, IObserver *observer,
 void Loop::force_disconnect(sock_t client, bool erase,
                             bool call_on_disconnect) {
     if (linked_clients.find(client) != linked_clients.end()) {
-        auto &observer = linked_clients.at(client);
+        auto &observer = linked_clients[client];
 
         if (call_on_disconnect) observer->on_disconnect(client);
 
@@ -36,6 +36,8 @@ void Loop::force_disconnect(sock_t client, bool erase,
         selector.remove(client);
         tcp_close(client);
 
+        return;
+    } else if (observers.find(client) == observers.end()) {
         return;
     }
 
