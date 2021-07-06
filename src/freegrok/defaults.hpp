@@ -12,5 +12,6 @@
 
 #define FREEGROK_PORT_FIELD "port"
 #define FREEGROK_MAGIC_FIELD "magic"
+#define FREEGROK_HTTP_PORT_FIELD "http_port"
 
 #endif //GROKPP_DEFAULTS_HPP

@@ -18,6 +18,8 @@ typedef int socklen_t;
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+
+#include <sys/uio.h>
 #endif
 
 #include <stdexcept>
@@ -101,12 +103,13 @@ inline void tcp_connect(sock_t sock, uint32_t v4_addr,
     sockaddr_in addr{};
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = v4_addr;
+
     addr.sin_family = AF_INET;
 
     tcp_connect(sock, addr);
 }
 
-inline void tcp_listen(sock_t src, int backlog = 4096) {
+inline void tcp_listen(sock_t src, int backlog = 64) {
     auto result = listen(src, backlog);
 
     if (result != 0) {

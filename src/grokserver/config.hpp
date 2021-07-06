@@ -12,6 +12,8 @@
 
 class Config {
 public:
+    uint16_t http_port;
+
     uint16_t port;
     uint32_t v4_host;
     std::string server_name;
@@ -19,7 +21,8 @@ public:
     uint32_t max_decompressed_size = MAX_DECOMPRESSED_SIZE;
 
     Config(uint16_t _port, uint32_t _host,
-           std::string _server_name) : port(_port), v4_host(_host), server_name(std::move(_server_name)) {
+           std::string _server_name, uint16_t _http_port) : port(_port), v4_host(_host), server_name(std::move(_server_name)),
+                                                            http_port(_http_port) {
 
     }
 };

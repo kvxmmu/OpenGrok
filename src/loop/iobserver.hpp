@@ -23,7 +23,10 @@ public:
     bool is_server;
     sock_t socket;
 
-    IObserver(sock_t _socket, bool _is_server) : is_server(_is_server), socket(_socket) {
+    uint8_t flags;
+
+    IObserver(sock_t _socket, bool _is_server,
+              uint8_t _flags = 0) : is_server(_is_server), socket(_socket), flags(_flags) {
 
     }
 

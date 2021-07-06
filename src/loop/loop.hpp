@@ -28,6 +28,16 @@ public:
     }
 
     WriteItem(const WriteItem &) = default;
+
+    void merge_buffers(const char *src, size_t n_length) {
+        auto n_buf = new char[length+n_length];
+        memcpy(n_buf, buffer, length);
+        memcpy(n_buf+length, src, n_length);
+
+        delete[] buffer;
+        buffer = n_buf;
+        length += n_length;
+    }
 };
 
 class ReadItem {
@@ -89,7 +99,7 @@ public:
 class Loop : public IErrorHandler {
 private:
     std::unordered_map<sock_t, Queues> queues;
-    std::unordered_map<sock_t, IObserver *> observers;
+    std::map<sock_t, IObserver *> observers;
     std::unordered_map<sock_t, IObserver *> linked_clients;
 
     Selector selector;

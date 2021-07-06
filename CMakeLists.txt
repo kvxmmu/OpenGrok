@@ -16,10 +16,16 @@ else()
     set(ZSTD_LINK "zstd")
 endif()
 
+# add_library(hincl )  # HTTP server
 add_library(event_loop src/loop/selector.cpp src/loop/selector.hpp
         src/loop/loop.cpp src/loop/loop.hpp ${EPOLL_SRC})
 add_library(server src/grokserver/server.cpp src/grokserver/server.hpp
-        src/grokserver/proxy_server.cpp src/grokserver/proxy_server.hpp)
+        src/grokserver/proxy_server.cpp src/grokserver/proxy_server.hpp
+        src/grokserver/http_interface.cpp src/grokserver/http_interface.hpp
+
+        src/hincl/api.c
+        src/hincl/http.c src/hincl/llhttp.c src/hincl/llhttp.h
+        src/hincl/hincl.cpp src/hincl/hincl.hpp)
 
 include_directories(src/)
 
@@ -36,3 +42,5 @@ target_link_libraries(grokpp event_loop server)
 if (MSVC OR MSYS OR MINGW OR WIN32)
     target_link_libraries(grokpp -static)
 endif()
+
+add_definitions(-Ofast)

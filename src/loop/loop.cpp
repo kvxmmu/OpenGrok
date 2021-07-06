@@ -167,6 +167,11 @@ void Loop::send(sock_t sock, char *buffer, size_t length) {
 
     if (write_queue.empty()) {
         selector.modify(sock, EVENTS_R | EVENT_WRITE);
+    } else {
+        auto &front = write_queue.front();
+        front.merge_buffers(buffer, length); // merge buffers to reduce syscalls count
+
+        return;
     }
 
     write_queue.emplace_back(buffer, length);
@@ -221,6 +226,25 @@ void Loop::run() {
                 this->force_disconnect(fd, true, true);
 
                 break;
+            } else if (events & EPOLLOUT) {
+                decltype(observers)::iterator obs_iter;
+
+                if ((obs_iter = observers.find(fd)) != observers.end()) {
+                    // client connection
+                    auto &observer = obs_iter->second;
+
+                    if (!observer->is_connected) {
+                        observer->on_connect();
+                        observer->is_connected = true;
+
+                        selector.modify(fd, EVENTS_R);
+                        observer->post_connect(fd);
+
+                        continue;
+                    }
+                }
+
+                this->perform_write_queue(fd);
             }
 
             if (events & EPOLLIN) {
@@ -243,27 +267,6 @@ void Loop::run() {
 
                     this->perform_read_queue(fd, linked_observer);
                 }
-            }
-
-            if (events & EPOLLOUT) {
-                decltype(observers)::iterator obs_iter;
-
-                if ((obs_iter = observers.find(fd)) != observers.end()) {
-                    // client connection
-                    auto &observer = obs_iter->second;
-
-                    if (!observer->is_connected) {
-                        observer->on_connect();
-                        observer->is_connected = true;
-
-                        selector.modify(fd, EVENTS_R);
-                        observer->post_connect(fd);
-
-                        continue;
-                    }
-                }
-
-                this->perform_write_queue(fd);
             }
         }
     }
