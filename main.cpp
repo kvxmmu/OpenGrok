@@ -64,17 +64,15 @@ int main() {
                reader.Get(FREEGROK_MAIN_SECT, DEFAULT_SERVER_NAME,
                           DEFAULT_SERVER_NAME),
                           http_port);
-    Loop loop;
-
-    if (cfg.http_port != 0) {
-        HttpInterface iface(cfg.http_port);
-        loop.add_observer(&iface);
-    }
-
+    
+    HttpInterface iface(cfg.http_port);
     FreeGrok server(cfg, magic_buf,
                     magic_len);
 
+    Loop loop;
+
     loop.add_observer(&server);
+    loop.add_observer(&iface);
     loop.run();
 
     return 0;
